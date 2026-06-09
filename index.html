@@ -576,7 +576,9 @@
   <div class="canvas-tap-hint" id="tap-hint" style="display:none;">Tap any field on the card to edit it</div>
   <div class="actions" id="card-actions" style="display:none;">
     <button class="btn-primary" id="download-btn">⬇ Download card</button>
-    <button class="btn-secondary" id="reset-btn">Try another photo</button>
+    <button class="btn-secondary" id="upload-btn">⬆ Upload image</button>
+    <input type="file" id="upload-any-input" accept="image/*,.cr2,.cr3,.tif,.tiff,.fit,.fits" style="display:none;">
+    <button class="btn-secondary" id="reset-btn" style="display:none;">Try another photo</button>
   </div>
   <div id="edit-panel" class="edit-panel" style="display:none;">
     <h3>Edit / Fill in specs</h3>
@@ -683,6 +685,8 @@ const canvasWrapper = document.getElementById('canvas-wrapper');
 const canvas = document.getElementById('preview-canvas');
 const ctx = canvas.getContext('2d');
 const downloadBtn = document.getElementById('download-btn');
+const uploadBtn = document.getElementById('upload-btn');
+const uploadAnyInput = document.getElementById('upload-any-input');
 const resetBtn = document.getElementById('reset-btn');
 const statusContainer = document.getElementById('status-container');
 const cardActions = document.getElementById('card-actions');
@@ -840,6 +844,17 @@ resetBtn.addEventListener('click', () => {
   textsizeVal.textContent = '100%';
   blurVal.textContent = '5px';
   Object.values(editFields).forEach(f => { f.value = ''; f.classList.remove('has-value'); });
+});
+
+uploadBtn.addEventListener('click', () => {
+  uploadAnyInput.value = '';
+  uploadAnyInput.click();
+});
+
+uploadAnyInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+  uploadAnyInput.value = '';
 });
 
 regenerateBtn.addEventListener('click', () => {
