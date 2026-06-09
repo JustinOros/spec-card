@@ -1328,7 +1328,8 @@ function makeFitsPlaceholderImage(meta) {
 function populateEditFields(meta, isFits) {
   fitsNotice.style.display = 'none';
   const savedFooter = localStorage.getItem('speccard_footer');
-  if (!meta.footer) meta.footer = savedFooter || '@FateOfAstrophilia';
+  const currentFooterVal = editFields.footer ? editFields.footer.value.trim() : '';
+  if (!meta.footer) meta.footer = currentFooterVal || savedFooter || '@FateOfAstrophilia';
   if (!meta.header) meta.header = 'SPEC CARD';
   currentMeta = meta;
   Object.entries(editFields).forEach(([key, input]) => {
