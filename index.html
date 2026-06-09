@@ -1098,22 +1098,26 @@ function processStandard(file) {
   reader.onload = e => {
     const img = new Image();
     img.onload = () => {
+      const cardIsShowing = outputSection.style.display && outputSection.style.display !== 'none';
+      if (cardIsShowing) {
+        currentImg = img;
+        clearStatus();
+        renderCard(img, readEditFields());
+        return;
+      }
       EXIF.getData(img, function() {
         const exif = EXIF.getAllTags(this);
         const meta = extractMeta(exif);
         const hasExif = !!(meta.camera || meta.aperture || meta.shutter || meta.iso || meta.focalLength);
-        if (!hasExif) {
-          currentImg = img;
-          clearStatus();
-          if (editPanel.style.display === 'none') populateEditFields({}, false);
-          const existingMeta = readEditFields();
-          renderCard(img, existingMeta);
-          return;
-        }
         currentImg = img;
         clearStatus();
-        populateEditFields(meta, false);
-        renderCard(img, meta);
+        if (hasExif) {
+          populateEditFields(meta, false);
+          renderCard(img, meta);
+        } else {
+          if (editPanel.style.display === 'none') populateEditFields({}, false);
+          renderCard(img, readEditFields());
+        }
       });
     };
     img.onerror = () => showError('Could not decode this image. Try saving it as a JPEG or PNG first.');
