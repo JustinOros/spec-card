@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera Spec Card Generator</title>
+<meta name="description" content="Turn any photo into a shareable camera spec card. Automatically reads EXIF metadata — camera, lens, aperture, shutter speed, ISO — and generates a downloadable 1080×1080 card perfect for Instagram.">
+<meta name="keywords" content="camera spec card generator, EXIF data overlay, photo specs card Instagram, shot on card maker, astrophotography spec card">
+<meta property="og:title" content="Camera Spec Card Generator">
+<meta property="og:description" content="Drop a photo, get a beautiful spec card with your camera settings. Free tool by @FateOfAstrophilia.">
+<meta property="og:url" content="https://cam-spec-card.justinoros.com">
+<meta name="twitter:card" content="summary_large_image">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0c10;
+    --surface: rgba(12,15,22,0.72);
+    --border: rgba(255,255,255,0.08);
+    --text: #e8eaf0;
+    --muted: rgba(232,234,240,0.45);
+    --accent: #c8a96e;
+    --accent-dim: rgba(200,169,110,0.15);
+    --drop-active: rgba(200,169,110,0.08);
+  }
+
+  body {
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(to bottom, rgba(8,10,16,0.62) 0%, rgba(8,10,16,0.78) 60%, rgba(8,10,16,0.92) 100%),
+      url('bg.jpg');
+    background-size: cover;
+    background-position: center top;
+    background-attachment: fixed;
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px 80px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+
+  .wordmark {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 18px;
+    opacity: 0.8;
+  }
+
+  h1 {
+    font-size: clamp(28px, 5vw, 46px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    color: var(--text);
+  }
+
+  h1 span {
+    color: var(--accent);
+  }
+
+  .subtitle {
+    margin-top: 14px;
+    font-size: 15px;
+    color: var(--muted);
+    font-weight: 300;
+    max-width: 360px;
+    line-height: 1.6;
+  }
+
+  .drop-zone {
+    width: 100%;
+    max-width: 520px;
+    border: 1.5px dashed rgba(200,169,110,0.3);
+    border-radius: 16px;
+    padding: 56px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    background: var(--surface);
+    position: relative;
+  }
+
+  .drop-zone:hover, .drop-zone.drag-over {
+    background: var(--drop-active);
+    border-color: var(--accent);
+  }
+
+  .drop-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 20px;
+    opacity: 0.5;
+  }
+
+  .drop-zone h2 {
+    font-size: 17px;
+    font-weight: 500;
+    margin-bottom: 8px;
+  }
+
+  .drop-zone p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 24px;
+  }
+
+  .browse-btn {
+    display: inline-block;
+    padding: 10px 24px;
+    background: var(--accent-dim);
+    border: 1px solid rgba(200,169,110,0.4);
+    border-radius: 8px;
+    color: var(--accent);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .browse-btn:hover {
+    background: rgba(200,169,110,0.22);
+  }
+
+  #file-input { display: none; }
+
+  .section-divider {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 40px 0;
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .section-divider::before, .section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  #output-section { display: none; width: 100%; max-width: 560px; flex-direction: column; align-items: center; }
+
+  #canvas-wrapper {
+    width: 100%;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
+    background: #000;
+  }
+
+  #preview-canvas { display: block; width: 100%; height: auto; }
+
+  .actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary {
+    flex: 1;
+    min-width: 160px;
+    padding: 14px 28px;
+    background: var(--accent);
+    color: #0a0c10;
+    border: none;
+    border-radius: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-primary:hover { opacity: 0.85; }
+
+  .btn-secondary {
+    flex: 1;
+    min-width: 160px;
+    padding: 14px 28px;
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .btn-secondary:hover { border-color: rgba(255,255,255,0.25); }
+
+  .ig-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 20px;
+    padding: 8px 16px;
+    background: rgba(200,169,110,0.08);
+    border: 1px solid rgba(200,169,110,0.22);
+    border-radius: 999px;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 500;
+    text-decoration: none;
+    letter-spacing: 0.01em;
+    transition: background 0.2s, border-color 0.2s;
+  }
+
+  .ig-link:hover {
+    background: rgba(200,169,110,0.16);
+    border-color: rgba(200,169,110,0.45);
+  }
+
+  .ig-link svg { flex-shrink: 0; opacity: 0.85; }
+
+  .loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding: 48px 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 2px solid rgba(200,169,110,0.2);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-state {
+    padding: 20px 24px;
+    background: rgba(220, 80, 80, 0.08);
+    border: 1px solid rgba(220, 80, 80, 0.25);
+    border-radius: 10px;
+    color: #e07070;
+    font-size: 13px;
+    line-height: 1.6;
+    width: 100%;
+  }
+
+  .edit-panel {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-top: 20px;
+  }
+
+  .edit-panel h3 {
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 18px;
+  }
+
+  .edit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+  }
+
+  .edit-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .edit-field label {
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .edit-field input {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 12px;
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    transition: border-color 0.2s;
+    outline: none;
+    width: 100%;
+  }
+
+  .edit-field input:focus {
+    border-color: rgba(200,169,110,0.5);
+  }
+
+  .edit-field input::placeholder {
+    color: rgba(232,234,240,0.2);
+  }
+
+  .edit-field input.has-value {
+    border-color: rgba(200,169,110,0.3);
+    color: var(--accent);
+  }
+
+  .btn-regenerate {
+    width: 100%;
+    margin-top: 18px;
+    padding: 12px;
+    background: rgba(200,169,110,0.1);
+    border: 1px solid rgba(200,169,110,0.3);
+    border-radius: 9px;
+    color: var(--accent);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .bg-drop-zone {
+    width: 100%;
+    margin-top: 18px;
+    border: 1.5px dashed rgba(200,169,110,0.25);
+    border-radius: 9px;
+    padding: 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .bg-drop-zone:hover, .bg-drop-zone.drag-over {
+    background: rgba(200,169,110,0.07);
+    border-color: rgba(200,169,110,0.5);
+    color: var(--accent);
+  }
+
+  .bg-drop-zone span {
+    display: block;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    color: var(--accent);
+    opacity: 0.7;
+  }
+
+  .btn-regenerate:hover { background: rgba(200,169,110,0.18); }
+
+  .fits-notice {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+    margin-bottom: 16px;
+    padding: 10px 14px;
+    background: rgba(200,169,110,0.06);
+    border-radius: 7px;
+    border-left: 2px solid rgba(200,169,110,0.4);
+  }
+
+  .canvas-tap-hint {
+    text-align: center;
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.15em;
+    color: rgba(232,234,240,0.28);
+    margin-top: 10px;
+    text-transform: uppercase;
+  }
+
+  .field-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 24px;
+    backdrop-filter: blur(4px);
+  }
+
+  .field-overlay-box {
+    background: #12151c;
+    border: 1px solid rgba(200,169,110,0.3);
+    border-radius: 14px;
+    padding: 28px 24px;
+    width: 100%;
+    max-width: 420px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .field-overlay-box h4 {
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+
+  .field-overlay-box input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(200,169,110,0.3);
+    border-radius: 8px;
+    padding: 11px 14px;
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+    outline: none;
+    width: 100%;
+  }
+
+  .field-overlay-box input:focus {
+    border-color: var(--accent);
+  }
+
+  .field-overlay-btns {
+    display: flex;
+    gap: 10px;
+  }
+
+  .field-overlay-btns button {
+    flex: 1;
+    padding: 11px;
+    border-radius: 8px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+  }
+
+  .field-overlay-btns .confirm {
+    background: var(--accent);
+    color: #0a0c10;
+  }
+
+  .field-overlay-btns .cancel {
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+  }
+
+  .slider-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    margin-top: 18px;
+  }
+
+  .slider-row label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .slider-row label span {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .slider-row input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .slider-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid #0a0c10;
+  }
+
+  .slider-row input[type=range]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid #0a0c10;
+  }
+
+  @media (max-width: 480px) {
+    body { padding: 32px 16px 60px; }
+    .drop-zone { padding: 40px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wordmark">Camera Spec Card Generator</div>
+  <div style="font-size:12px; font-weight:300; color:rgba(232,234,240,0.4); letter-spacing:0.08em; margin-bottom:18px;">by Justin Oros</div>
+  <h1>Turn any photo into<br>a <span>camera spec card</span></h1>
+  <p class="subtitle">Drop a photo. We'll read its EXIF metadata and generate a shareable spec overlay — perfect for Instagram.</p>
+  <a class="ig-link" href="https://www.instagram.com/FateOfAstrophilia" target="_blank" rel="noopener">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="5"/>
+      <circle cx="12" cy="12" r="4"/>
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+    </svg>
+    @FateOfAstrophilia
+  </a>
+</header>
+
+<div class="drop-zone" id="drop-zone">
+  <svg class="drop-icon" viewBox="0 0 52 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <rect x="4" y="10" width="44" height="34" rx="4" stroke="#c8a96e" stroke-width="1.5"/>
+    <circle cx="26" cy="27" r="9" stroke="#c8a96e" stroke-width="1.5"/>
+    <circle cx="26" cy="27" r="4" fill="#c8a96e" opacity="0.4"/>
+    <rect x="16" y="10" width="8" height="5" rx="1.5" stroke="#c8a96e" stroke-width="1.5"/>
+  </svg>
+  <h2>Drop your photo here</h2>
+  <p>JPEG, PNG, TIFF, CR2 RAW, FITS — EXIF metadata will be extracted automatically</p>
+  <label class="browse-btn" for="file-input">Browse files</label>
+  <input type="file" id="file-input" accept="image/*,.cr2,.cr3,.tif,.tiff,.fit,.fits">
+</div>
+
+<div id="output-section">
+  <div class="section-divider">Your spec card</div>
+  <div id="status-container"></div>
+  <div id="canvas-wrapper" style="display:none;">
+    <canvas id="preview-canvas"></canvas>
+  </div>
+  <div class="canvas-tap-hint" id="tap-hint" style="display:none;">Tap any field on the card to edit it</div>
+  <div class="actions" id="card-actions" style="display:none;">
+    <button class="btn-primary" id="download-btn">⬇ Download card</button>
+    <button class="btn-secondary" id="reset-btn">Try another photo</button>
+  </div>
+  <div id="edit-panel" class="edit-panel" style="display:none;">
+    <h3>Edit / Fill in specs</h3>
+    <div id="fits-notice" class="fits-notice" style="display:none;"></div>
+    <div class="edit-grid">
+      <div class="edit-field" style="grid-column: 1 / -1;">
+        <label>Header text (shown at top of card)</label>
+        <input type="text" id="ef-header" placeholder="e.g. @FateOfAstrophilia or SPEC CARD">
+      </div>
+      <div class="edit-field">
+        <label>Camera / Scope</label>
+        <input type="text" id="ef-camera" placeholder="e.g. Seestar S30 Pro">
+      </div>
+      <div class="edit-field">
+        <label>Telescope</label>
+        <input type="text" id="ef-telescope" placeholder="e.g. ZWO TC40">
+      </div>
+      <div class="edit-field">
+        <label>Lens</label>
+        <input type="text" id="ef-lens" placeholder="e.g. Sigma 16-28mm">
+      </div>
+      <div class="edit-field">
+        <label>Focal Length</label>
+        <input type="text" id="ef-focal" placeholder="e.g. 24mm">
+      </div>
+      <div class="edit-field">
+        <label>Aperture</label>
+        <input type="text" id="ef-aperture" placeholder="e.g. f/2.8">
+      </div>
+      <div class="edit-field">
+        <label>Filter</label>
+        <input type="text" id="ef-filter" placeholder="e.g. LP Filter or Ha">
+      </div>
+      <div class="edit-field">
+        <label>Shutter / Exposure</label>
+        <input type="text" id="ef-shutter" placeholder="e.g. 25s">
+      </div>
+      <div class="edit-field">
+        <label>Frames Stacked</label>
+        <input type="text" id="ef-frames" placeholder="e.g. 240 frames">
+      </div>
+      <div class="edit-field">
+        <label>Total Integration</label>
+        <input type="text" id="ef-totalexp" placeholder="e.g. 2h 40min">
+      </div>
+      <div class="edit-field">
+        <label>ISO / Gain</label>
+        <input type="text" id="ef-iso" placeholder="e.g. ISO 3200">
+      </div>
+      <div class="edit-field">
+        <label>Object / Subject</label>
+        <input type="text" id="ef-object" placeholder="e.g. Lagoon Nebula (M8)">
+      </div>
+      <div class="edit-field">
+        <label>Location</label>
+        <input type="text" id="ef-location" placeholder="e.g. Puebla, MX">
+      </div>
+      <div class="edit-field">
+        <label>Bortle Scale</label>
+        <input type="text" id="ef-bortle" placeholder="e.g. Bortle 4">
+      </div>
+      <div class="edit-field">
+        <label>Date</label>
+        <input type="text" id="ef-date" placeholder="e.g. Jun 1, 2025">
+      </div>
+      <div class="edit-field" style="grid-column: 1 / -1;">
+        <label>Footer text (IG handle, website, anything)</label>
+        <input type="text" id="ef-footer" placeholder="e.g. @FateOfAstrophilia or your website">
+      </div>
+      <div class="edit-field">
+        <label>Icon color</label>
+        <input type="text" id="ef-iconcolor" placeholder="#c8a96e" maxlength="7">
+      </div>
+      <div class="edit-field">
+        <label>Text color</label>
+        <input type="text" id="ef-textcolor" placeholder="#e8eaf0" maxlength="7">
+      </div>
+    </div>
+    <div class="slider-row">
+      <label>Text size <span id="textsize-val">100%</span></label>
+      <input type="range" id="slider-textsize" min="60" max="140" value="100" step="1">
+    </div>
+    <div class="slider-row">
+      <label>Background blur <span id="blur-val">5px</span></label>
+      <input type="range" id="slider-blur" min="0" max="60" value="5" step="1">
+    </div>
+    <button class="btn-regenerate" id="regenerate-btn">↺ Update card</button>
+    <div class="bg-drop-zone" id="bg-drop-zone">
+      <span>Background image</span>
+      Drop or click to swap the card background — image data only, no EXIF needed
+      <input type="file" id="bg-file-input" accept="image/*" style="display:none;">
+    </div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/utif2@4.1.0/UTIF.js"></script>
+<script>
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+const bgDropZone = document.getElementById('bg-drop-zone');
+const bgFileInput = document.getElementById('bg-file-input');
+const outputSection = document.getElementById('output-section');
+const canvasWrapper = document.getElementById('canvas-wrapper');
+const canvas = document.getElementById('preview-canvas');
+const ctx = canvas.getContext('2d');
+const downloadBtn = document.getElementById('download-btn');
+const resetBtn = document.getElementById('reset-btn');
+const statusContainer = document.getElementById('status-container');
+const cardActions = document.getElementById('card-actions');
+const editPanel = document.getElementById('edit-panel');
+const fitsNotice = document.getElementById('fits-notice');
+const regenerateBtn = document.getElementById('regenerate-btn');
+
+const editFields = {
+  header:    document.getElementById('ef-header'),
+  camera:    document.getElementById('ef-camera'),
+  telescope: document.getElementById('ef-telescope'),
+  lensModel: document.getElementById('ef-lens'),
+  focalLength: document.getElementById('ef-focal'),
+  aperture:  document.getElementById('ef-aperture'),
+  filter:    document.getElementById('ef-filter'),
+  shutter:   document.getElementById('ef-shutter'),
+  frames:    document.getElementById('ef-frames'),
+  totalExp:  document.getElementById('ef-totalexp'),
+  iso:       document.getElementById('ef-iso'),
+  object:    document.getElementById('ef-object'),
+  location:  document.getElementById('ef-location'),
+  bortle:    document.getElementById('ef-bortle'),
+  date:      document.getElementById('ef-date'),
+  footer:    document.getElementById('ef-footer'),
+  iconColor: document.getElementById('ef-iconcolor'),
+  textColor: document.getElementById('ef-textcolor'),
+};
+
+const tapHint = document.getElementById('tap-hint');
+const sliderTextSize = document.getElementById('slider-textsize');
+const sliderBlur = document.getElementById('slider-blur');
+const textsizeVal = document.getElementById('textsize-val');
+const blurVal = document.getElementById('blur-val');
+
+let currentFilename = 'spec-card.jpg';
+let currentImg = null;
+let currentMeta = {};
+let textScale = 1.0;
+let blurAmount = 5;
+let iconColor = '#c8a96e';
+let textColor = '#e8eaf0';
+
+function showLoading(msg) {
+  statusContainer.innerHTML = `<div class="loading-state"><div class="spinner"></div><span>${msg}</span></div>`;
+  canvasWrapper.style.display = 'none';
+  cardActions.style.display = 'none';
+}
+
+function showError(msg) {
+  statusContainer.innerHTML = `<div class="error-state">${msg}</div>`;
+  cardActions.style.display = 'flex';
+}
+
+function clearStatus() {
+  statusContainer.innerHTML = '';
+}
+
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('drag-over');
+});
+
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+});
+
+document.addEventListener('dragover', e => e.preventDefault());
+
+document.addEventListener('drop', e => {
+  e.preventDefault();
+  if (outputSection.style.display && outputSection.style.display !== 'none') {
+    const file = e.dataTransfer.files[0];
+    if (!file) return;
+    const name = file.name.toLowerCase();
+    const isDataFormat = name.endsWith('.fit') || name.endsWith('.fits') ||
+                         name.endsWith('.cr2') || name.endsWith('.cr3') ||
+                         name.endsWith('.tif') || name.endsWith('.tiff');
+    if (isDataFormat) {
+      canvasWrapper.style.display = 'none';
+      cardActions.style.display = 'none';
+      processFile(file);
+    } else {
+      swapBackground(file);
+    }
+  }
+});
+
+bgDropZone.addEventListener('click', () => bgFileInput.click());
+
+bgDropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  bgDropZone.classList.add('drag-over');
+});
+
+bgDropZone.addEventListener('dragleave', () => bgDropZone.classList.remove('drag-over'));
+
+bgDropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  e.stopPropagation();
+  bgDropZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) swapBackground(file);
+});
+
+bgFileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) swapBackground(file);
+  bgFileInput.value = '';
+});
+
+function swapBackground(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      currentImg = img;
+      const meta = readEditFields();
+      renderCard(img, meta);
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+});
+
+dropZone.addEventListener('dblclick', () => fileInput.click());
+
+resetBtn.addEventListener('click', () => {
+  outputSection.style.display = 'none';
+  canvasWrapper.style.display = 'none';
+  cardActions.style.display = 'none';
+  editPanel.style.display = 'none';
+  tapHint.style.display = 'none';
+  dropZone.style.display = '';
+  fileInput.value = '';
+  currentFilename = 'spec-card.jpg';
+  currentImg = null;
+  currentMeta = {};
+  clearStatus();
+  blurAmount = 5;
+  iconColor = '#c8a96e';
+  textColor = '#e8eaf0';
+  sliderTextSize.value = 100;
+  sliderBlur.value = 10;
+  textsizeVal.textContent = '100%';
+  blurVal.textContent = '5px';
+  Object.values(editFields).forEach(f => { f.value = ''; f.classList.remove('has-value'); });
+});
+
+regenerateBtn.addEventListener('click', () => {
+  if (!currentImg) return;
+  const meta = readEditFields();
+  renderCard(currentImg, meta);
+});
+
+sliderTextSize.addEventListener('input', () => {
+  textScale = sliderTextSize.value / 100;
+  textsizeVal.textContent = sliderTextSize.value + '%';
+  if (currentImg) renderCard(currentImg, readEditFields());
+});
+
+sliderBlur.addEventListener('input', () => {
+  blurAmount = parseInt(sliderBlur.value);
+  blurVal.textContent = blurAmount + 'px';
+  if (currentImg) renderCard(currentImg, readEditFields());
+});
+
+editFields.iconColor.addEventListener('input', () => {
+  const val = editFields.iconColor.value.trim();
+  if (val === '') {
+    iconColor = '#c8a96e';
+  } else if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    iconColor = val;
+  }
+  if (currentImg) renderCard(currentImg, readEditFields());
+});
+
+editFields.textColor.addEventListener('input', () => {
+  const val = editFields.textColor.value.trim();
+  if (val === '') {
+    textColor = '#e8eaf0';
+  } else if (/^#[0-9a-fA-F]{6}$/.test(val)) {
+    textColor = val;
+  }
+  if (currentImg) renderCard(currentImg, readEditFields());
+});
+
+const CARD_REGION_KEYS = [
+  { key: 'header',     label: 'Header text'            },
+  { key: 'camera',     label: 'Camera / Scope'         },
+  { key: 'telescope',  label: 'Telescope'              },
+  { key: 'lensModel',  label: 'Lens'                   },
+  { key: 'focalLength',label: 'Focal Length'           },
+  { key: 'aperture',   label: 'Aperture'               },
+  { key: 'filter',     label: 'Filter'                 },
+  { key: 'shutter',    label: 'Shutter / Exposure'     },
+  { key: 'frames',     label: 'Frames Stacked'         },
+  { key: 'totalExp',   label: 'Total Integration'      },
+  { key: 'iso',        label: 'ISO / Gain'             },
+  { key: 'object',     label: 'Object / Subject'       },
+  { key: 'location',   label: 'Location'               },
+  { key: 'bortle',     label: 'Bortle Scale'           },
+  { key: 'date',       label: 'Date'                   },
+  { key: 'footer',     label: 'Footer (IG / website)'  },
+];
+
+function getCardRegions() {
+  const SIZE = 1080;
+  const specs = buildSpecs(readEditFields());
+  const contentTop = 120;
+  const contentBottom = SIZE - 110;
+  const availableH = contentBottom - contentTop;
+  const twoCol = specs.length > 7;
+
+  const regions = [
+    { key: 'header', label: 'Header text', yStart: 0, yEnd: 110 / SIZE },
+  ];
+
+  if (twoCol) {
+    const col1 = specs.slice(0, Math.ceil(specs.length / 2));
+    const col2 = specs.slice(Math.ceil(specs.length / 2));
+    const colCount = Math.max(col1.length, col2.length);
+    const maxRowH = 100;
+    const minRowH = 56;
+    const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / colCount)));
+    const totalBlockH = colCount * rowH;
+    const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
+
+    [col1, col2].forEach(col => {
+      col.forEach((item, i) => {
+        const rowTop = startY + i * rowH;
+        const def = CARD_REGION_KEYS.find(r => r.key === item.key);
+        regions.push({
+          key: item.key,
+          label: def ? def.label : item.label,
+          yStart: rowTop / SIZE,
+          yEnd: (rowTop + rowH) / SIZE,
+        });
+      });
+    });
+  } else {
+    const maxRowH = 100;
+    const minRowH = 62;
+    const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / specs.length)));
+    const totalBlockH = specs.length * rowH;
+    const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
+
+    specs.forEach((item, i) => {
+      const rowTop = startY + i * rowH;
+      const def = CARD_REGION_KEYS.find(r => r.key === item.key);
+      regions.push({
+        key: item.key,
+        label: def ? def.label : item.label,
+        yStart: rowTop / SIZE,
+        yEnd: (rowTop + rowH) / SIZE,
+      });
+    });
+  }
+
+  regions.push({ key: 'footer', label: 'Footer (IG / website)', yStart: (SIZE - 110) / SIZE, yEnd: 1 });
+  return regions;
+}
+
+canvas.style.cursor = 'pointer';
+
+canvas.addEventListener('click', e => {
+  const rect = canvas.getBoundingClientRect();
+  const relY = (e.clientY - rect.top) / rect.height;
+  const regions = getCardRegions();
+  const region = regions.find(r => relY >= r.yStart && relY < r.yEnd);
+  if (!region) return;
+  showFieldOverlay(region.key, region.label);
+});
+
+function showFieldOverlay(key, label) {
+  const existing = document.getElementById('field-overlay');
+  if (existing) existing.remove();
+
+  const currentVal = editFields[key] ? editFields[key].value : '';
+
+  const overlay = document.createElement('div');
+  overlay.className = 'field-overlay';
+  overlay.id = 'field-overlay';
+  overlay.innerHTML = `
+    <div class="field-overlay-box">
+      <h4>${label}</h4>
+      <input type="text" id="overlay-input" value="${currentVal.replace(/"/g, '&quot;')}" placeholder="${editFields[key] ? editFields[key].placeholder : ''}">
+      <div class="field-overlay-btns">
+        <button class="cancel" id="overlay-cancel">Cancel</button>
+        <button class="confirm" id="overlay-confirm">Update card</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const input = document.getElementById('overlay-input');
+  input.focus();
+  input.select();
+
+  const close = () => overlay.remove();
+
+  input.addEventListener('input', () => {
+    if (editFields[key] && currentImg) {
+      editFields[key].value = input.value;
+      editFields[key].classList.toggle('has-value', !!input.value);
+      renderCard(currentImg, readEditFields());
+    }
+  });
+
+  document.getElementById('overlay-cancel').addEventListener('click', close);
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
+
+  const confirm = () => {
+    const val = input.value.trim();
+    if (editFields[key]) {
+      editFields[key].value = val;
+      editFields[key].classList.toggle('has-value', !!val);
+    }
+    const meta = readEditFields();
+    renderCard(currentImg, meta);
+    close();
+  };
+
+  document.getElementById('overlay-confirm').addEventListener('click', confirm);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirm();
+    if (e.key === 'Escape') close();
+  });
+}
+
+downloadBtn.addEventListener('click', () => {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const link = document.createElement('a');
+  link.download = `camera-spec-card-${ts}.jpg`;
+  link.href = canvas.toDataURL('image/jpeg', 0.92);
+  link.style.display = 'none';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+});
+
+function getFileType(file) {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.cr2') || name.endsWith('.cr3')) return 'raw';
+  if (name.endsWith('.tif') || name.endsWith('.tiff')) return 'tiff';
+  if (name.endsWith('.fit') || name.endsWith('.fits')) return 'fits';
+  return 'standard';
+}
+
+function processFile(file) {
+  currentFilename = file.name || 'spec-card.jpg';
+  outputSection.style.display = 'flex';
+  dropZone.style.display = 'none';
+  window.scrollTo({ top: outputSection.offsetTop - 32, behavior: 'smooth' });
+  const type = getFileType(file);
+  if (type === 'raw') {
+    showLoading('Decoding RAW file…');
+    processRaw(file);
+  } else if (type === 'tiff') {
+    showLoading('Decoding TIFF…');
+    processTiff(file);
+  } else if (type === 'fits') {
+    showLoading('Reading FITS header…');
+    processFits(file);
+  } else {
+    showLoading('Reading image…');
+    processStandard(file);
+  }
+}
+
+function processStandard(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      EXIF.getData(img, function() {
+        const exif = EXIF.getAllTags(this);
+        const meta = extractMeta(exif);
+        const hasExif = !!(meta.camera || meta.aperture || meta.shutter || meta.iso || meta.focalLength);
+        if (!hasExif) {
+          currentImg = img;
+          clearStatus();
+          if (editPanel.style.display === 'none') populateEditFields({}, false);
+          const existingMeta = readEditFields();
+          renderCard(img, existingMeta);
+          return;
+        }
+        currentImg = img;
+        clearStatus();
+        populateEditFields(meta, false);
+        renderCard(img, meta);
+      });
+    };
+    img.onerror = () => showError('Could not decode this image. Try saving it as a JPEG or PNG first.');
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function processTiff(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const buffer = e.target.result;
+      const ifds = UTIF.decode(buffer);
+      if (!ifds || ifds.length === 0) throw new Error('No IFDs found');
+      UTIF.decodeImage(buffer, ifds[0]);
+      const ifd = ifds[0];
+      const w = ifd.t256 ? (Array.isArray(ifd.t256) ? ifd.t256[0] : ifd.t256) : 0;
+      const h = ifd.t257 ? (Array.isArray(ifd.t257) ? ifd.t257[0] : ifd.t257) : 0;
+      if (!w || !h) throw new Error('Could not read image dimensions');
+      const rgba = UTIF.toRGBA8(ifd);
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = w;
+      tempCanvas.height = h;
+      const tempCtx = tempCanvas.getContext('2d');
+      const imgData = tempCtx.createImageData(w, h);
+      imgData.data.set(rgba);
+      tempCtx.putImageData(imgData, 0, 0);
+      const meta = extractMetaFromTiffIfd(ifd);
+      const img = new Image();
+      img.onload = () => {
+        currentImg = img;
+        clearStatus();
+        populateEditFields(meta, false);
+        renderCard(img, meta);
+      };
+      img.src = tempCanvas.toDataURL();
+    } catch (err) {
+      showError(`TIFF decode failed: ${err.message}. If this is a 32-bit float TIFF from Siril, export as 16-bit or 8-bit TIFF first.`);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function processRaw(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const buffer = e.target.result;
+      const bytes = new Uint8Array(buffer);
+      const meta = extractExifFromBuffer(bytes);
+      const jpegOffset = findEmbeddedJpeg(bytes);
+      if (jpegOffset === -1) throw new Error('No embedded preview found in this RAW file.');
+      const jpegBytes = bytes.slice(jpegOffset);
+      const blob = new Blob([jpegBytes], { type: 'image/jpeg' });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        currentImg = img;
+        clearStatus();
+        populateEditFields(meta, false);
+        renderCard(img, meta);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        showError('Found a RAW file but could not extract the embedded preview. Make sure the CR2 was not stripped of its preview.');
+      };
+      img.src = url;
+    } catch (err) {
+      showError(`RAW decode failed: ${err.message}`);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function processFits(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const buffer = e.target.result;
+      const text = new TextDecoder('ascii').decode(new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 23040)));
+      const meta = parseFitsHeader(text);
+      clearStatus();
+      populateEditFields(meta, true);
+      if (!currentImg) {
+        fitsNotice.style.display = 'block';
+        fitsNotice.textContent = 'FITS files contain no viewable image preview. The card background will be a blurred gradient. Drop an image onto the card or use the background zone below to set one.';
+        currentImg = makeFitsPlaceholderImage(meta);
+      }
+      renderCard(currentImg, readEditFields());
+    } catch (err) {
+      showError(`FITS read failed: ${err.message}`);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseFitsHeader(text) {
+  const meta = {};
+  const cards = [];
+  for (let i = 0; i + 80 <= text.length; i += 80) {
+    cards.push(text.slice(i, i + 80));
+  }
+  const get = key => {
+    const card = cards.find(c => c.slice(0,8).trim() === key);
+    if (!card) return null;
+    const val = card.slice(10).split('/')[0].trim().replace(/^'(.*?)'$/, '$1').trim();
+    return val || null;
+  };
+  const getNum = key => {
+    const v = get(key);
+    return v !== null ? parseFloat(v) : null;
+  };
+
+  const instrume = get('INSTRUME');
+  const telescop = get('TELESCOP');
+  meta.camera = instrume || null;
+  meta.telescope = (instrume && telescop && instrume !== telescop) ? telescop : (!instrume ? telescop : null);
+
+  meta.lensModel = get('LENS') || get('OPTICS') || null;
+
+  const fl = getNum('FOCALLEN') || getNum('FOCAL');
+  meta.focalLength = fl ? fl.toFixed(0) + 'mm' : null;
+
+  const fratio = getNum('FOCRATIO') || getNum('APERTURE');
+  meta.aperture = fratio ? 'f/' + fratio.toFixed(1) : null;
+
+  meta.filter = get('FILTER') || get('FILT') || null;
+
+  const exptime = getNum('EXPTIME') || getNum('EXPOSURE');
+  if (exptime !== null) {
+    meta.shutter = exptime >= 1 ? exptime.toFixed(0) + 's' : '1/' + Math.round(1/exptime) + 's';
+  } else {
+    meta.shutter = null;
+  }
+
+  const stackcnt = getNum('STACKCNT') || getNum('NCOMBINE') || getNum('NFRAMES');
+  meta.frames = stackcnt ? stackcnt + ' frames' : null;
+
+  const totalexp = getNum('TOTALEXP');
+  if (totalexp !== null) {
+    const h = Math.floor(totalexp / 3600);
+    const m = Math.floor((totalexp % 3600) / 60);
+    const s = Math.round(totalexp % 60);
+    if (h > 0) meta.totalExp = `${h}h ${m}min`;
+    else if (m > 0) meta.totalExp = `${m}min ${s}s`;
+    else meta.totalExp = `${s}s`;
+  } else {
+    meta.totalExp = null;
+  }
+
+  const gain = getNum('GAIN');
+  const iso = getNum('ISO');
+  if (iso !== null) meta.iso = 'ISO ' + iso;
+  else if (gain !== null) meta.iso = 'Gain ' + gain;
+  else meta.iso = null;
+
+  meta.object = get('OBJECT') || get('TARGET') || null;
+
+  const lat = get('SITELAT') || get('OBSLAT');
+  const lon = get('SITELONG') || get('OBSLONG');
+  meta.location = (lat && lon) ? `${parseFloat(lat).toFixed(2)}°, ${parseFloat(lon).toFixed(2)}°` : null;
+
+  const bortle = getNum('BORTLE');
+  const sqm = getNum('SQMVALUE') || getNum('SQM');
+  if (bortle !== null) meta.bortle = 'Bortle ' + bortle;
+  else if (sqm !== null) meta.bortle = 'SQM ' + sqm.toFixed(1);
+  else meta.bortle = null;
+
+  const dateObs = get('DATE-OBS') || get('DATE');
+  if (dateObs) {
+    const parsed = new Date(dateObs.split('T')[0]);
+    meta.date = isNaN(parsed) ? dateObs : parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  } else {
+    meta.date = null;
+  }
+
+  return meta;
+}
+
+function makeFitsPlaceholderImage(meta) {
+  const offscreen = document.createElement('canvas');
+  offscreen.width = 1080;
+  offscreen.height = 1080;
+  const c = offscreen.getContext('2d');
+  const grad = c.createRadialGradient(540, 540, 0, 540, 540, 760);
+  grad.addColorStop(0, '#1a1060');
+  grad.addColorStop(0.4, '#0d0830');
+  grad.addColorStop(1, '#04030f');
+  c.fillStyle = grad;
+  c.fillRect(0, 0, 1080, 1080);
+  const img = new Image();
+  img.src = offscreen.toDataURL();
+  return img;
+}
+
+function populateEditFields(meta, isFits) {
+  fitsNotice.style.display = 'none';
+  if (!meta.footer) meta.footer = '@FateOfAstrophilia';
+  if (!meta.header) meta.header = 'SPEC CARD';
+  currentMeta = meta;
+  Object.entries(editFields).forEach(([key, input]) => {
+    const val = meta[key] || '';
+    input.value = val;
+    input.classList.toggle('has-value', !!val);
+    input.addEventListener('input', () => {
+      input.classList.toggle('has-value', !!input.value);
+      if (currentImg) renderCard(currentImg, readEditFields());
+    });
+  });
+  editPanel.style.display = 'block';
+}
+
+function readEditFields() {
+  const meta = {};
+  Object.entries(editFields).forEach(([key, input]) => {
+    meta[key] = input.value.trim() || null;
+  });
+  return meta;
+}
+
+function findEmbeddedJpeg(bytes) {
+  for (let i = 0; i < bytes.length - 3; i++) {
+    if (bytes[i] === 0xFF && bytes[i+1] === 0xD8 && bytes[i+2] === 0xFF) {
+      if (bytes[i+3] === 0xE0 || bytes[i+3] === 0xE1 || bytes[i+3] === 0xDB || bytes[i+3] === 0xC0) {
+        if (i > 100) return i;
+      }
+    }
+  }
+  return -1;
+}
+
+function readUint16(bytes, offset, le) {
+  return le ? bytes[offset] | (bytes[offset+1] << 8) : (bytes[offset] << 8) | bytes[offset+1];
+}
+
+function readUint32(bytes, offset, le) {
+  return le
+    ? bytes[offset] | (bytes[offset+1] << 8) | (bytes[offset+2] << 16) | (bytes[offset+3] << 24)
+    : (bytes[offset] << 24) | (bytes[offset+1] << 16) | (bytes[offset+2] << 8) | bytes[offset+3];
+}
+
+function readAscii(bytes, offset, length) {
+  let s = '';
+  for (let i = 0; i < length && bytes[offset+i] !== 0; i++) s += String.fromCharCode(bytes[offset+i]);
+  return s.trim();
+}
+
+function readRational(bytes, offset, le) {
+  const num = readUint32(bytes, offset, le);
+  const den = readUint32(bytes, offset+4, le);
+  return den !== 0 ? num / den : 0;
+}
+
+function extractExifFromBuffer(bytes) {
+  const result = {};
+  let exifStart = -1;
+  for (let i = 0; i < Math.min(bytes.length - 6, 131072); i++) {
+    if (bytes[i]===0x45 && bytes[i+1]===0x78 && bytes[i+2]===0x69 &&
+        bytes[i+3]===0x66 && bytes[i+4]===0x00 && bytes[i+5]===0x00) {
+      exifStart = i + 6; break;
+    }
+  }
+  if (exifStart === -1) {
+    if (bytes[0] === 0x49 && bytes[1] === 0x49) exifStart = 0;
+    else if (bytes[0] === 0x4D && bytes[1] === 0x4D) exifStart = 0;
+  }
+  if (exifStart === -1) return result;
+  const base = exifStart;
+  const le = bytes[base] === 0x49;
+  const ifd0Offset = readUint32(bytes, base + 4, le);
+  parseIfd(bytes, base, base + ifd0Offset, le, result, 0);
+  return result;
+}
+
+function parseIfd(bytes, base, ifdOffset, le, result, depth) {
+  if (depth > 3 || ifdOffset + 2 > bytes.length) return;
+  const count = readUint16(bytes, ifdOffset, le);
+  if (count > 200) return;
+  for (let i = 0; i < count; i++) {
+    const entryOffset = ifdOffset + 2 + i * 12;
+    if (entryOffset + 12 > bytes.length) break;
+    const tag = readUint16(bytes, entryOffset, le);
+    const type = readUint16(bytes, entryOffset + 2, le);
+    const count2 = readUint32(bytes, entryOffset + 4, le);
+    const valueOffset = entryOffset + 8;
+    const typeSizes = [0,1,1,2,4,8,1,1,2,4,8,4,8];
+    const typeSize = type < typeSizes.length ? typeSizes[type] : 1;
+    const dataSize = typeSize * count2;
+    const dataOffset = dataSize > 4 ? base + readUint32(bytes, valueOffset, le) : valueOffset;
+    if (tag === 0x010F) result.Make = readAscii(bytes, dataOffset, count2);
+    else if (tag === 0x0110) result.Model = readAscii(bytes, dataOffset, count2);
+    else if (tag === 0x9003) result.DateTimeOriginal = readAscii(bytes, dataOffset, count2);
+    else if (tag === 0x829A && type === 5) result.ExposureTime = readRational(bytes, dataOffset, le);
+    else if (tag === 0x829D && type === 5) result.FNumber = readRational(bytes, dataOffset, le);
+    else if (tag === 0x8827) result.ISOSpeedRatings = type === 3 ? readUint16(bytes, dataOffset, le) : readUint32(bytes, dataOffset, le);
+    else if (tag === 0x920A && type === 5) result.FocalLength = readRational(bytes, dataOffset, le);
+    else if (tag === 0xA434) result.LensModel = readAscii(bytes, dataOffset, count2);
+    else if (tag === 0x8769 && type === 4) {
+      const subOffset = base + readUint32(bytes, valueOffset, le);
+      parseIfd(bytes, base, subOffset, le, result, depth + 1);
+    }
+  }
+}
+
+function extractMetaFromTiffIfd(ifd) {
+  const result = {};
+  const getString = tag => {
+    const val = ifd[tag];
+    if (!val) return null;
+    if (Array.isArray(val)) return val.map(c => String.fromCharCode(c)).join('').replace(/\0/g,'').trim();
+    return String(val).trim();
+  };
+  const getRational = tag => {
+    const val = ifd[tag];
+    if (!val) return null;
+    if (Array.isArray(val) && val.length >= 2) return val[0] / val[1];
+    return typeof val === 'number' ? val : null;
+  };
+  const make = getString('t271') || '';
+  const model = getString('t272') || '';
+  result.camera = [make, model].filter(Boolean).join(' ').trim() || null;
+  result.lensModel = getString('ta434') || getString('t42036') || null;
+  const fl = getRational('ta920a') || getRational('t37386');
+  result.focalLength = fl ? fl.toFixed(0) + 'mm' : null;
+  const fn = getRational('ta829d') || getRational('t33437');
+  result.aperture = fn ? 'f/' + fn.toFixed(1) : null;
+  const et = getRational('ta829a') || getRational('t33434');
+  result.shutter = et !== null ? (et >= 1 ? et.toFixed(0) + 's' : '1/' + Math.round(1/et) + 's') : null;
+  const iso = ifd['ta8827'] || ifd['t34855'];
+  result.iso = iso ? 'ISO ' + (Array.isArray(iso) ? iso[0] : iso) : null;
+  const dateRaw = getString('ta9003') || getString('t306');
+  if (dateRaw) {
+    const parts = dateRaw.split(' ');
+    if (parts[0]) {
+      const d = parts[0].replace(/:/g, '-');
+      const parsed = new Date(d);
+      result.date = isNaN(parsed) ? null : parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+  }
+  return result;
+}
+
+function extractMeta(exif) {
+  const make = exif.Make || '';
+  const model = exif.Model || '';
+  const camera = [make, model].filter(Boolean).join(' ').trim() || null;
+  const lensModel = exif.LensModel || exif.Lens || null;
+  let focalLength = null;
+  if (exif.FocalLength) {
+    const fl = exif.FocalLength;
+    focalLength = (typeof fl === 'object' ? (fl.numerator / fl.denominator) : fl).toFixed(0) + 'mm';
+  }
+  let aperture = null;
+  if (exif.FNumber) {
+    const fn = exif.FNumber;
+    aperture = 'f/' + (typeof fn === 'object' ? (fn.numerator / fn.denominator) : fn).toFixed(1);
+  } else if (exif.ApertureValue) {
+    const av = exif.ApertureValue;
+    const raw = typeof av === 'object' ? (av.numerator / av.denominator) : av;
+    aperture = 'f/' + Math.pow(2, raw / 2).toFixed(1);
+  }
+  let shutter = null;
+  if (exif.ExposureTime) {
+    const et = exif.ExposureTime;
+    const val = typeof et === 'object' ? (et.numerator / et.denominator) : et;
+    shutter = val >= 1 ? val.toFixed(0) + 's' : '1/' + Math.round(1 / val) + 's';
+  }
+  let iso = null;
+  if (exif.ISOSpeedRatings) {
+    iso = 'ISO ' + (Array.isArray(exif.ISOSpeedRatings) ? exif.ISOSpeedRatings[0] : exif.ISOSpeedRatings);
+  }
+  let date = null;
+  if (exif.DateTimeOriginal) {
+    const raw = exif.DateTimeOriginal;
+    const parts = raw.split(' ');
+    if (parts[0]) {
+      const d = parts[0].replace(/:/g, '-');
+      date = new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+  }
+  return { camera, lensModel, focalLength, aperture, shutter, iso, date };
+}
+
+function renderCard(img, meta) {
+  const SIZE = 1080;
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+
+  ctx.clearRect(0, 0, SIZE, SIZE);
+
+  ctx.filter = blurAmount > 0 ? `blur(${blurAmount}px)` : 'none';
+  ctx.drawImage(img, -40, -40, SIZE + 80, SIZE + 80);
+  ctx.filter = 'none';
+
+  ctx.fillStyle = 'rgba(8, 10, 16, 0.55)';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  const headerFontSize = Math.round(22 * textScale);
+  ctx.textAlign = 'center';
+  ctx.fillStyle = textColor + '59';
+  ctx.font = `400 ${headerFontSize}px "Space Mono", monospace`;
+  ctx.fillText((meta.header || '@FateOfAstrophilia').toUpperCase(), SIZE / 2, 80);
+
+  ctx.strokeStyle = iconColor + '59';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(80, 100);
+  ctx.lineTo(SIZE - 80, 100);
+  ctx.stroke();
+
+  ctx.fillStyle = iconColor + '33';
+  ctx.beginPath();
+  ctx.arc(SIZE / 2, 100, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  const specs = buildSpecs(meta);
+  const contentTop = 120;
+  const contentBottom = SIZE - 110;
+  const availableH = contentBottom - contentTop;
+  const twoCol = specs.length > 7;
+
+  if (twoCol) {
+    const col1 = specs.slice(0, Math.ceil(specs.length / 2));
+    const col2 = specs.slice(Math.ceil(specs.length / 2));
+    const colCount = Math.max(col1.length, col2.length);
+
+    const maxRowH = 100;
+    const minRowH = 56;
+    const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / colCount)));
+    const scale = rowH / maxRowH;
+    const iconSize = Math.round(28 * scale);
+    const labelSize = Math.max(8, Math.round(11 * scale * textScale));
+    const valueSize = Math.max(14, Math.round(22 * scale * textScale));
+
+    const totalBlockH = colCount * rowH;
+    const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
+
+    const colContentW = 380;
+    const colGap = 60;
+    const totalTwoColW = colContentW * 2 + colGap;
+    const col1X = SIZE / 2 - totalTwoColW / 2 + 60;
+    const col2X = col1X + colContentW + colGap;
+
+    ctx.strokeStyle = 'rgba(232,234,240,0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(SIZE / 2, startY);
+    ctx.lineTo(SIZE / 2, startY + totalBlockH - rowH * 0.3);
+    ctx.stroke();
+
+    [col1, col2].forEach((col, colIdx) => {
+      const colX = colIdx === 0 ? col1X : col2X;
+      col.forEach((item, i) => {
+        const y = startY + i * rowH;
+        drawIcon(ctx, item.icon, colX, y + Math.round(rowH * 0.1), iconSize);
+        ctx.textAlign = 'left';
+        ctx.font = `500 ${labelSize}px "Space Mono", monospace`;
+        ctx.fillStyle = textColor + '66';
+        ctx.fillText(item.label.toUpperCase(), colX + iconSize + 12, y + Math.round(rowH * 0.3));
+        ctx.font = `bold ${valueSize}px "Space Grotesk", sans-serif`;
+        ctx.fillStyle = textColor;
+        const maxW = colContentW - iconSize - 20;
+        ctx.fillText(item.value, colX + iconSize + 12, y + Math.round(rowH * 0.68), maxW);
+      });
+    });
+  } else {
+    const maxRowH = 100;
+    const minRowH = 62;
+    const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / specs.length)));
+    const scale = rowH / maxRowH;
+    const iconSize = Math.round(34 * scale);
+    const labelSize = Math.max(9, Math.round(12 * scale * textScale));
+    const valueSize = Math.max(16, Math.round(26 * scale * textScale));
+    const blockW = 300;
+    const x = SIZE / 2 - blockW / 2;
+    const totalBlockH = specs.length * rowH;
+    const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
+
+    specs.forEach((item, i) => {
+      const y = startY + i * rowH;
+      drawIcon(ctx, item.icon, x, y + Math.round(rowH * 0.1), iconSize);
+      ctx.textAlign = 'left';
+      ctx.font = `500 ${labelSize}px "Space Mono", monospace`;
+      ctx.fillStyle = textColor + '66';
+      ctx.fillText(item.label.toUpperCase(), x + iconSize + 16, y + Math.round(rowH * 0.3));
+      ctx.font = `bold ${valueSize}px "Space Grotesk", sans-serif`;
+      ctx.fillStyle = textColor;
+      ctx.fillText(item.value, x + iconSize + 16, y + Math.round(rowH * 0.68));
+    });
+  }
+
+  const footerLineY = SIZE - 100;
+  const footerTextY = SIZE - 52;
+  const footerText = meta.footer || 'cam-spec-card.justinoros.com';
+  const footerFontSize = Math.round(20 * textScale);
+
+  ctx.font = `300 ${footerFontSize}px "Space Grotesk", sans-serif`;
+  const ftextW = ctx.measureText(footerText).width;
+  const ficonSz = Math.round(24 * textScale);
+  const fgap = 10;
+  const ftotalW = ficonSz + fgap + ftextW;
+  const ficonX = SIZE / 2 - ftotalW / 2;
+  const ftextX = ficonX + ficonSz + fgap;
+  const fiy = footerTextY - ficonSz * 0.72;
+
+  ctx.save();
+  ctx.strokeStyle = iconColor + '66';
+  ctx.lineWidth = 1.3;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const fic = ficonX + ficonSz / 2;
+  const fim = fiy + ficonSz / 2;
+  const fir = ficonSz / 2;
+  ctx.beginPath();
+  ctx.roundRect(ficonX + 1, fim - fir * 0.55, ficonSz - 2, ficonSz * 0.78, 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(fic, fim + fir * 0.06, fir * 0.3, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.roundRect(ficonX + ficonSz * 0.27, fim - fir * 0.55 - fir * 0.22, ficonSz * 0.28, fir * 0.26, 1);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.textAlign = 'left';
+  ctx.font = `300 ${footerFontSize}px "Space Grotesk", sans-serif`;
+  ctx.fillStyle = textColor + '66';
+  ctx.fillText(footerText, ftextX, footerTextY);
+
+  ctx.strokeStyle = iconColor + '4d';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(80, footerLineY);
+  ctx.lineTo(SIZE - 80, footerLineY);
+  ctx.stroke();
+
+  ctx.fillStyle = iconColor + '2e';
+  const dotR = 3;
+  ctx.beginPath();
+  ctx.arc(SIZE / 2, footerLineY, dotR, 0, Math.PI * 2);
+  ctx.fill();
+
+  canvasWrapper.style.display = 'block';
+  cardActions.style.display = 'flex';
+  tapHint.style.display = 'block';
+  if (editPanel.style.display === 'none') editPanel.style.display = 'block';
+}
+
+function buildSpecs(meta) {
+  const all = [
+    meta.camera      ? { key: 'camera',      label: 'Camera',            value: meta.camera,      icon: 'camera'    } : null,
+    meta.telescope   ? { key: 'telescope',   label: 'Telescope',         value: meta.telescope,   icon: 'telescope' } : null,
+    meta.lensModel   ? { key: 'lensModel',   label: 'Lens',              value: meta.lensModel,   icon: 'lens'      } : null,
+    meta.focalLength ? { key: 'focalLength', label: 'Focal Length',      value: meta.focalLength, icon: 'focal'     } : null,
+    meta.aperture    ? { key: 'aperture',    label: 'Aperture',          value: meta.aperture,    icon: 'aperture'  } : null,
+    meta.filter      ? { key: 'filter',      label: 'Filter',            value: meta.filter,      icon: 'filter'    } : null,
+    meta.shutter     ? { key: 'shutter',     label: 'Shutter/Exposure',  value: meta.shutter,     icon: 'shutter'   } : null,
+    meta.frames      ? { key: 'frames',      label: 'Frames Stacked',    value: meta.frames,      icon: 'frames'    } : null,
+    meta.totalExp    ? { key: 'totalExp',    label: 'Total Integration', value: meta.totalExp,    icon: 'totalexp'  } : null,
+    meta.iso         ? { key: 'iso',         label: 'ISO / Gain',        value: meta.iso,         icon: 'iso'       } : null,
+    meta.object      ? { key: 'object',      label: 'Object',            value: meta.object,      icon: 'object'    } : null,
+    meta.location    ? { key: 'location',    label: 'Location',          value: meta.location,    icon: 'location'  } : null,
+    meta.bortle      ? { key: 'bortle',      label: 'Bortle Scale',      value: meta.bortle,      icon: 'bortle'    } : null,
+    meta.date        ? { key: 'date',        label: 'Date',              value: meta.date,        icon: 'calendar'  } : null,
+  ].filter(Boolean);
+
+  if (all.length === 0) {
+    return [{ key: 'camera', label: 'Camera', value: 'No data — tap to edit', icon: 'camera' }];
+  }
+  return all;
+}
+
+function drawIcon(ctx, type, x, y, size) {
+  ctx.save();
+  ctx.strokeStyle = iconColor + 'b3';
+  ctx.lineWidth = 1.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  const c = x + size / 2;
+  const m = y + size / 2;
+  const r = size / 2;
+
+  if (type === 'camera') {
+    ctx.beginPath();
+    ctx.roundRect(x + 2, y + 8, size - 4, size - 14, 3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(c, m + 2, r * 0.32, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.roundRect(x + 10, y + 4, 8, 6, 1);
+    ctx.stroke();
+  } else if (type === 'lens') {
+    ctx.beginPath();
+    ctx.arc(c, m, r * 0.72, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(c, m, r * 0.38, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(c, m, r * 0.14, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (type === 'focal') {
+    ctx.beginPath();
+    ctx.moveTo(x + 4, m);
+    ctx.lineTo(x + size - 4, m);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 4, m - 6);
+    ctx.lineTo(x + 4, m + 6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + size - 4, m - 6);
+    ctx.lineTo(x + size - 4, m + 6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(c, m, 5, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (type === 'shutter') {
+    ctx.beginPath();
+    ctx.arc(c, m, r * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(c, m);
+    ctx.lineTo(c, m - r * 0.55);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(c, m);
+    ctx.lineTo(c + r * 0.35, m - r * 0.1);
+    ctx.stroke();
+  } else if (type === 'aperture') {
+    ctx.beginPath();
+    ctx.arc(c, m, r * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+    for (let i = 0; i < 6; i++) {
+      const angle = (i * Math.PI) / 3;
+      ctx.beginPath();
+      ctx.moveTo(c + Math.cos(angle) * r * 0.3, m + Math.sin(angle) * r * 0.3);
+      ctx.lineTo(c + Math.cos(angle) * r * 0.65, m + Math.sin(angle) * r * 0.65);
+      ctx.stroke();
+    }
+  } else if (type === 'iso') {
+    ctx.font = `bold ${size * 0.42}px "Space Mono"`;
+    ctx.fillStyle = iconColor + 'b3';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('ISO', c, m);
+  } else if (type === 'object') {
+    ctx.beginPath();
+    ctx.arc(c, m, r * 0.68, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(c, m, r * 0.95, r * 0.28, -0.4, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (type === 'calendar') {
+    ctx.beginPath();
+    ctx.roundRect(x + 3, y + 6, size - 6, size - 8, 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 3, y + 14);
+    ctx.lineTo(x + size - 3, y + 14);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 10, y + 3);
+    ctx.lineTo(x + 10, y + 10);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + size - 10, y + 3);
+    ctx.lineTo(x + size - 10, y + 10);
+    ctx.stroke();
+  } else if (type === 'telescope') {
+    ctx.beginPath();
+    ctx.moveTo(x + 4, m + r * 0.5);
+    ctx.lineTo(x + size - 4, m - r * 0.3);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + size - 4, m - r * 0.3);
+    ctx.lineTo(x + size - 4, m + r * 0.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(c - 2, m + r * 0.5);
+    ctx.lineTo(c - 2, y + size);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x + size - 4, m - r * 0.3, r * 0.22, 0, Math.PI * 2);
+    ctx.stroke();
+  } else if (type === 'filter') {
+    ctx.beginPath();
+    ctx.arc(c, m, r * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(c - r * 0.4, m - r * 0.4);
+    ctx.lineTo(c + r * 0.4, m + r * 0.4);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(c + r * 0.4, m - r * 0.4);
+    ctx.lineTo(c - r * 0.4, m + r * 0.4);
+    ctx.stroke();
+  } else if (type === 'frames') {
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.roundRect(x + 3 + i * 5, y + 5 + i * 4, size - 10, size - 14, 2);
+      ctx.stroke();
+    }
+  } else if (type === 'totalexp') {
+    ctx.beginPath();
+    ctx.arc(c, m, r * 0.7, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(c, m);
+    ctx.lineTo(c, m - r * 0.55);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(c, m);
+    ctx.lineTo(c + r * 0.5, m);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(c - r * 0.7, m - r * 0.5);
+    ctx.lineTo(c - r * 0.5, m - r * 0.7);
+    ctx.stroke();
+  } else if (type === 'location') {
+    ctx.beginPath();
+    ctx.arc(c, m - r * 0.15, r * 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(c - r * 0.5, m - r * 0.15);
+    ctx.quadraticCurveTo(c - r * 0.5, m + r * 0.7, c, m + r * 0.85);
+    ctx.quadraticCurveTo(c + r * 0.5, m + r * 0.7, c + r * 0.5, m - r * 0.15);
+    ctx.stroke();
+  } else if (type === 'bortle') {
+    for (let i = 0; i < 5; i++) {
+      const starX = x + 4 + i * (size - 8) / 4;
+      const starY = m;
+      ctx.beginPath();
+      ctx.arc(starX, starY, i < 3 ? 2.5 : 1.5, 0, Math.PI * 2);
+      ctx.fillStyle = iconColor + 'b3';
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+</script>
+</body>
+</html>
