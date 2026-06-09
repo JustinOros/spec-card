@@ -8,7 +8,7 @@
 <meta name="keywords" content="camera spec card generator, EXIF data overlay, photo specs card Instagram, shot on card maker, astrophotography spec card">
 <meta property="og:title" content="Camera Spec Card Generator">
 <meta property="og:description" content="Drop a photo, get a beautiful spec card with your camera settings. Free tool by @FateOfAstrophilia.">
-<meta property="og:url" content="@FateofAstrophilia">
+<meta property="og:url" content="https://cam-spec-card.justinoros.com">
 <meta name="twitter:card" content="summary_large_image">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -39,7 +39,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 48px 24px 80px;
+    padding: 48px 24px 120px;
   }
 
   header {
@@ -544,14 +544,6 @@
   <div style="font-size:12px; font-weight:300; color:rgba(232,234,240,0.4); letter-spacing:0.08em; margin-bottom:18px;">by Justin Oros</div>
   <h1>Turn any photo into<br>a <span>camera spec card</span></h1>
   <p class="subtitle">Drop a photo (and/or Siril FIT file). We'll read its EXIF metadata and generate a shareable spec overlay — perfect for Instagram.</p>
-  <a class="ig-link" href="https://www.instagram.com/FateOfAstrophilia" target="_blank" rel="noopener">
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="2" width="20" height="20" rx="5"/>
-      <circle cx="12" cy="12" r="4"/>
-      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
-    </svg>
-    @FateOfAstrophilia
-  </a>
 </header>
 
 <div class="drop-zone" id="drop-zone">
@@ -566,6 +558,15 @@
   <label class="browse-btn" for="file-input">Browse files</label>
   <input type="file" id="file-input" accept="image/*,.cr2,.cr3,.tif,.tiff,.fit,.fits">
 </div>
+
+<a class="ig-link" href="https://www.instagram.com/FateOfAstrophilia" target="_blank" rel="noopener">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="2" width="20" height="20" rx="5"/>
+    <circle cx="12" cy="12" r="4"/>
+    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+  </svg>
+  @FateOfAstrophilia
+</a>
 
 <div id="output-section">
   <div class="section-divider">Your spec card</div>
@@ -1630,7 +1631,7 @@ function renderCard(img, meta) {
 
   const footerLineY = SIZE - 100;
   const footerTextY = SIZE - 52;
-  const footerText = meta.footer || '@FateOfAstrophilia';
+  const footerText = meta.footer || 'cam-spec-card.justinoros.com';
   const footerFontSize = Math.round(20 * textScale);
 
   ctx.font = `300 ${footerFontSize}px "Space Grotesk", sans-serif`;
