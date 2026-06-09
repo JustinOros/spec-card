@@ -1151,8 +1151,13 @@ function processTiff(file) {
       img.onload = () => {
         currentImg = img;
         clearStatus();
-        populateEditFields(meta, false);
-        renderCard(img, meta);
+        const cardIsShowing = outputSection.style.display && outputSection.style.display !== 'none';
+        if (cardIsShowing) {
+          renderCard(img, readEditFields());
+        } else {
+          populateEditFields(meta, false);
+          renderCard(img, meta);
+        }
       };
       img.src = tempCanvas.toDataURL();
     } catch (err) {
@@ -1179,8 +1184,13 @@ function processRaw(file) {
         URL.revokeObjectURL(url);
         currentImg = img;
         clearStatus();
-        populateEditFields(meta, false);
-        renderCard(img, meta);
+        const cardIsShowing = outputSection.style.display && outputSection.style.display !== 'none';
+        if (cardIsShowing) {
+          renderCard(img, readEditFields());
+        } else {
+          populateEditFields(meta, false);
+          renderCard(img, meta);
+        }
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
