@@ -8,7 +8,7 @@ Drop your image, get a beautifully formatted 1080×1080 overlay with your shooti
 
 ---
 
-![Spec Card Example](bg.jpg)
+![Spec Card Example](screenshot.jpg)
 
 ---
 
