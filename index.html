@@ -1300,7 +1300,8 @@ function makeFitsPlaceholderImage(meta) {
 
 function populateEditFields(meta, isFits) {
   fitsNotice.style.display = 'none';
-  if (!meta.footer) meta.footer = '@FateOfAstrophilia';
+  const savedFooter = localStorage.getItem('speccard_footer');
+  if (!meta.footer) meta.footer = savedFooter || '@FateOfAstrophilia';
   if (!meta.header) meta.header = 'SPEC CARD';
   currentMeta = meta;
   Object.entries(editFields).forEach(([key, input]) => {
@@ -1309,6 +1310,11 @@ function populateEditFields(meta, isFits) {
     input.classList.toggle('has-value', !!val);
     input.addEventListener('input', () => {
       input.classList.toggle('has-value', !!input.value);
+      if (key === 'footer') {
+        const footerVal = input.value.trim();
+        if (footerVal) localStorage.setItem('speccard_footer', footerVal);
+        else localStorage.removeItem('speccard_footer');
+      }
       if (currentImg) renderCard(currentImg, readEditFields());
     });
   });
