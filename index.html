@@ -8,7 +8,7 @@
 <meta name="keywords" content="camera spec card generator, EXIF data overlay, photo specs card Instagram, shot on card maker, astrophotography spec card">
 <meta property="og:title" content="Camera Spec Card Generator">
 <meta property="og:description" content="Drop a photo, get a beautiful spec card with your camera settings. Free tool by @FateOfAstrophilia.">
-<meta property="og:url" content="https://cam-spec-card.justinoros.com">
+<meta property="og:url" content="https://justinoros.github.io/spec-card/">
 <meta name="twitter:card" content="summary_large_image">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -39,12 +39,12 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 48px 24px 120px;
+    padding: 28px 24px 120px;
   }
 
   header {
     text-align: center;
-    margin-bottom: 56px;
+    margin-bottom: 28px;
   }
 
   .wordmark {
@@ -83,7 +83,7 @@
     max-width: 520px;
     border: 1.5px dashed rgba(200,169,110,0.3);
     border-radius: 16px;
-    padding: 56px 32px;
+    padding: 32px 32px;
     text-align: center;
     cursor: pointer;
     transition: background 0.2s, border-color 0.2s;
@@ -142,7 +142,7 @@
     display: flex;
     align-items: center;
     gap: 16px;
-    margin: 40px 0;
+    margin: 20px 0;
     color: var(--muted);
     font-size: 11px;
     letter-spacing: 0.2em;
@@ -559,7 +559,7 @@
   <input type="file" id="file-input" accept="image/*,.cr2,.cr3,.tif,.tiff,.fit,.fits">
 </div>
 
-<a class="ig-link" href="https://www.instagram.com/FateOfAstrophilia" target="_blank" rel="noopener">
+<a class="ig-link" id="ig-link-top" href="https://www.instagram.com/FateOfAstrophilia" target="_blank" rel="noopener">
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="2" y="2" width="20" height="20" rx="5"/>
     <circle cx="12" cy="12" r="4"/>
@@ -674,7 +674,15 @@
     </div>
   </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/exif-js/2.3.0/exif.min.js"></script>
+  <a class="ig-link" id="ig-link-bottom" style="display:none; margin-top:16px;" href="https://www.instagram.com/FateOfAstrophilia" target="_blank" rel="noopener">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="5"/>
+      <circle cx="12" cy="12" r="4"/>
+      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/>
+    </svg>
+    @FateOfAstrophilia
+  </a>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/utif2@4.1.0/UTIF.js"></script>
 <script>
 const dropZone = document.getElementById('drop-zone');
@@ -717,6 +725,8 @@ const editFields = {
 };
 
 const tapHint = document.getElementById('tap-hint');
+const igLinkTop = document.getElementById('ig-link-top');
+const igLinkBottom = document.getElementById('ig-link-bottom');
 const sliderTextSize = document.getElementById('slider-textsize');
 const sliderBlur = document.getElementById('slider-blur');
 const textsizeVal = document.getElementById('textsize-val');
@@ -832,6 +842,8 @@ resetBtn.addEventListener('click', () => {
   editPanel.style.display = 'none';
   tapHint.style.display = 'none';
   dropZone.style.display = '';
+  igLinkTop.style.display = 'inline-flex';
+  igLinkBottom.style.display = 'none';
   fileInput.value = '';
   currentFilename = 'spec-card.jpg';
   currentImg = null;
@@ -1076,6 +1088,8 @@ function getFileType(file) {
 function processFile(file) {
   currentFilename = file.name || 'spec-card.jpg';
   outputSection.style.display = 'flex';
+  igLinkTop.style.display = 'none';
+  igLinkBottom.style.display = 'inline-flex';
   dropZone.style.display = 'none';
   window.scrollTo({ top: outputSection.offsetTop - 32, behavior: 'smooth' });
   const type = getFileType(file);
@@ -1539,7 +1553,7 @@ function renderCard(img, meta) {
   ctx.textAlign = 'center';
   ctx.fillStyle = textColor + '59';
   ctx.font = `400 ${headerFontSize}px "Space Mono", monospace`;
-  ctx.fillText((meta.header || '@FateOfAstrophilia').toUpperCase(), SIZE / 2, 80);
+  ctx.fillText((meta.header || 'SPEC CARD').toUpperCase(), SIZE / 2, 80);
 
   ctx.strokeStyle = iconColor + '59';
   ctx.lineWidth = 1;
@@ -1631,7 +1645,7 @@ function renderCard(img, meta) {
 
   const footerLineY = SIZE - 100;
   const footerTextY = SIZE - 52;
-  const footerText = meta.footer || 'cam-spec-card.justinoros.com';
+  const footerText = meta.footer || '@FateOfAstrophilia';
   const footerFontSize = Math.round(20 * textScale);
 
   ctx.font = `300 ${footerFontSize}px "Space Grotesk", sans-serif`;
