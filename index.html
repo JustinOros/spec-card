@@ -451,7 +451,57 @@
     transition: background 0.2s;
   }
 
-  .bg-drop-zone {
+  .second-cam-section {
+    width: 100%;
+    margin-top: 24px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+  }
+
+  .second-cam-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 4px 0;
+    user-select: none;
+  }
+
+  .second-cam-toggle h4 {
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    opacity: 0.8;
+  }
+
+  .second-cam-toggle .chevron {
+    color: var(--accent);
+    opacity: 0.6;
+    transition: transform 0.2s;
+    font-size: 12px;
+  }
+
+  .second-cam-toggle.open .chevron {
+    transform: rotate(180deg);
+  }
+
+  .second-cam-fields {
+    display: none;
+    margin-top: 16px;
+  }
+
+  .second-cam-fields.open {
+    display: block;
+  }
+
+  .col-label-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
     width: 100%;
     margin-top: 18px;
     border: 1.5px dashed rgba(200,169,110,0.25);
@@ -834,6 +884,75 @@
         <input type="text" id="ef-textcolor" placeholder="#e8eaf0" maxlength="7">
       </div>
     </div>
+
+    <div class="second-cam-section">
+      <div class="second-cam-toggle" id="second-cam-toggle">
+        <h4>+ Second Camera / Foreground</h4>
+        <span class="chevron">▼</span>
+      </div>
+      <div class="second-cam-fields" id="second-cam-fields">
+        <div class="col-label-row">
+          <div class="edit-field">
+            <label>Column 1 label</label>
+            <input type="text" id="ef-col1label" placeholder="e.g. Sky" value="Sky">
+          </div>
+          <div class="edit-field">
+            <label>Column 2 label</label>
+            <input type="text" id="ef-col2label" placeholder="e.g. Foreground" value="Foreground">
+          </div>
+        </div>
+        <div class="edit-grid">
+          <div class="edit-field">
+            <label>Camera 2 / Scope</label>
+            <input type="text" id="ef2-camera" placeholder="e.g. Sony A7 III">
+          </div>
+          <div class="edit-field">
+            <label>Telescope 2</label>
+            <input type="text" id="ef2-telescope" placeholder="e.g. ZWO TC40">
+          </div>
+          <div class="edit-field">
+            <label>Lens 2</label>
+            <input type="text" id="ef2-lens" placeholder="e.g. Sigma 16-28mm">
+          </div>
+          <div class="edit-field">
+            <label>Focal Length 2</label>
+            <input type="text" id="ef2-focal" placeholder="e.g. 28mm">
+          </div>
+          <div class="edit-field">
+            <label>Aperture 2</label>
+            <input type="text" id="ef2-aperture" placeholder="e.g. f/3.5">
+          </div>
+          <div class="edit-field">
+            <label>Filter 2</label>
+            <input type="text" id="ef2-filter" placeholder="e.g. Ha">
+          </div>
+          <div class="edit-field">
+            <label>Shutter 2</label>
+            <input type="text" id="ef2-shutter" placeholder="e.g. 237s">
+          </div>
+          <div class="edit-field">
+            <label>Frames 2</label>
+            <input type="text" id="ef2-frames" placeholder="e.g. 12 frames">
+          </div>
+          <div class="edit-field">
+            <label>Total Integration 2</label>
+            <input type="text" id="ef2-totalexp" placeholder="e.g. 40min">
+          </div>
+          <div class="edit-field">
+            <label>ISO / Gain 2</label>
+            <input type="text" id="ef2-iso" placeholder="e.g. ISO 1000">
+          </div>
+          <div class="edit-field">
+            <label>Object 2</label>
+            <input type="text" id="ef2-object" placeholder="e.g. Foreground">
+          </div>
+          <div class="edit-field">
+            <label>Date 2</label>
+            <input type="text" id="ef2-date" placeholder="e.g. Jun 1, 2025">
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="slider-row">
       <label>Label &amp; header size <span id="labelsize-val">100%</span></label>
       <input type="range" id="slider-labelsize" min="60" max="140" value="100" step="1">
@@ -918,6 +1037,31 @@ const editFields = {
   textColor: document.getElementById('ef-textcolor'),
 };
 
+const editFields2 = {
+  camera:    document.getElementById('ef2-camera'),
+  telescope: document.getElementById('ef2-telescope'),
+  lensModel: document.getElementById('ef2-lens'),
+  focalLength: document.getElementById('ef2-focal'),
+  aperture:  document.getElementById('ef2-aperture'),
+  filter:    document.getElementById('ef2-filter'),
+  shutter:   document.getElementById('ef2-shutter'),
+  frames:    document.getElementById('ef2-frames'),
+  totalExp:  document.getElementById('ef2-totalexp'),
+  iso:       document.getElementById('ef2-iso'),
+  object:    document.getElementById('ef2-object'),
+  date:      document.getElementById('ef2-date'),
+};
+
+const efCol1Label = document.getElementById('ef-col1label');
+const efCol2Label = document.getElementById('ef-col2label');
+const secondCamToggle = document.getElementById('second-cam-toggle');
+const secondCamFields = document.getElementById('second-cam-fields');
+
+secondCamToggle.addEventListener('click', () => {
+  secondCamToggle.classList.toggle('open');
+  secondCamFields.classList.toggle('open');
+});
+
 const tapHint = document.getElementById('tap-hint');
 const igLinkTop = document.getElementById('ig-link-top');
 const igLinkBottom = document.getElementById('ig-link-bottom');
@@ -957,6 +1101,21 @@ Object.entries(editFields).forEach(([key, input]) => {
     if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
   });
 });
+
+Object.values(editFields2).forEach(input => {
+  if (!input) return;
+  input.addEventListener('input', () => {
+    input.classList.toggle('has-value', !!input.value);
+    if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
+  });
+});
+
+[efCol1Label, efCol2Label].forEach(input => {
+  if (!input) return;
+  input.addEventListener('input', () => {
+    if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
+  });
+});
 let iconColor = '#c8a96e';
 let textColor = '#e8eaf0';
 
@@ -984,6 +1143,7 @@ dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-ove
 
 dropZone.addEventListener('drop', e => {
   e.preventDefault();
+  e.stopPropagation();
   dropZone.classList.remove('drag-over');
   const file = e.dataTransfer.files[0];
   if (file) processFile(file);
@@ -1065,6 +1225,11 @@ resetBtn.addEventListener('click', () => {
   labelsizeVal.textContent = '140%';
   blurVal.textContent = '5px';
   Object.values(editFields).forEach(f => { f.value = ''; f.classList.remove('has-value'); });
+  Object.values(editFields2).forEach(f => { if (f) { f.value = ''; f.classList.remove('has-value'); } });
+  if (efCol1Label) efCol1Label.value = 'Sky';
+  if (efCol2Label) efCol2Label.value = 'Foreground';
+  secondCamToggle.classList.remove('open');
+  secondCamFields.classList.remove('open');
 });
 
 uploadBtn.addEventListener('click', () => {
@@ -1361,8 +1526,10 @@ function processFile(file) {
 }
 
 function processStandard(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
+  const dataReader = new FileReader();
+  const bufReader = new FileReader();
+
+  dataReader.onload = e => {
     const img = new Image();
     img.onload = () => {
       if (currentImg !== null) {
@@ -1373,8 +1540,26 @@ function processStandard(file) {
       }
       currentImg = img;
       clearStatus();
+
+      const bytes = bufReader._bytes;
+      let metaFromBuffer = null;
+      if (bytes) {
+        try { metaFromBuffer = extractExifFromJpegBuffer(bytes); } catch(e) {}
+      }
+
+      const hasBufferMeta = metaFromBuffer && !!(metaFromBuffer.camera || metaFromBuffer.aperture || metaFromBuffer.shutter || metaFromBuffer.iso || metaFromBuffer.focalLength);
+
+      if (hasBufferMeta) {
+        populateEditFields(metaFromBuffer, false);
+        renderCard(img, metaFromBuffer);
+        return;
+      }
+
+      let exifDone = false;
       try {
         EXIF.getData(img, function() {
+          if (exifDone) return;
+          exifDone = true;
           const exif = EXIF.getAllTags(this);
           const meta = extractMeta(exif);
           const hasExif = !!(meta.camera || meta.aperture || meta.shutter || meta.iso || meta.focalLength);
@@ -1386,10 +1571,13 @@ function processStandard(file) {
           }
         });
       } catch(err) {
+        exifDone = true;
         renderCard(img, readEditFields());
       }
+
       setTimeout(() => {
-        if (canvasWrapper.style.display === 'none') {
+        if (!exifDone) {
+          exifDone = true;
           renderCard(img, readEditFields());
         }
       }, 1500);
@@ -1397,7 +1585,123 @@ function processStandard(file) {
     img.onerror = () => showError('Could not decode this image. Try saving it as a JPEG or PNG first.');
     img.src = e.target.result;
   };
-  reader.readAsDataURL(file);
+
+  bufReader.onload = e => {
+    bufReader._bytes = new Uint8Array(e.target.result);
+    dataReader.readAsDataURL(file);
+  };
+
+  bufReader.readAsArrayBuffer(file);
+}
+
+function extractExifFromJpegBuffer(bytes) {
+  if (bytes[0] !== 0xFF || bytes[1] !== 0xD8) return null;
+  let offset = 2;
+  while (offset < bytes.length - 4) {
+    if (bytes[offset] !== 0xFF) break;
+    const marker = bytes[offset + 1];
+    const segLen = (bytes[offset + 2] << 8) | bytes[offset + 3];
+    if (marker === 0xE1) {
+      if (bytes[offset+4]===0x45 && bytes[offset+5]===0x78 &&
+          bytes[offset+6]===0x69 && bytes[offset+7]===0x66 &&
+          bytes[offset+8]===0x00 && bytes[offset+9]===0x00) {
+        const tiffStart = offset + 10;
+        const seg = bytes.slice(tiffStart, offset + 2 + segLen);
+        const le = seg[0] === 0x49;
+        const ifd0 = readUint32_b(seg, 4, le);
+        const exifRaw = {};
+        parseIfdFull(seg, 0, ifd0, le, exifRaw, 0);
+        return buildMetaFromRaw(exifRaw);
+      }
+    }
+    if (marker === 0xDA) break;
+    offset += 2 + segLen;
+  }
+  return null;
+}
+
+function readUint16_b(b, off, le) {
+  if (off + 1 >= b.length) return 0;
+  return le ? b[off] | (b[off+1] << 8) : (b[off] << 8) | b[off+1];
+}
+
+function readUint32_b(b, off, le) {
+  if (off + 3 >= b.length) return 0;
+  return le
+    ? (b[off] | (b[off+1]<<8) | (b[off+2]<<16) | (b[off+3]<<24)) >>> 0
+    : ((b[off]<<24) | (b[off+1]<<16) | (b[off+2]<<8) | b[off+3]) >>> 0;
+}
+
+function readAscii_b(b, off, len) {
+  let s = '';
+  for (let i = 0; i < len && off+i < b.length && b[off+i] !== 0; i++) s += String.fromCharCode(b[off+i]);
+  return s.trim();
+}
+
+function readRational_b(b, off, le) {
+  const num = readUint32_b(b, off, le);
+  const den = readUint32_b(b, off+4, le);
+  return den !== 0 ? num / den : 0;
+}
+
+function parseIfdFull(b, base, ifdOff, le, result, depth) {
+  if (depth > 4 || ifdOff + 2 > b.length) return;
+  const count = readUint16_b(b, ifdOff, le);
+  if (count > 300 || count === 0) return;
+  for (let i = 0; i < count; i++) {
+    const e = ifdOff + 2 + i * 12;
+    if (e + 12 > b.length) break;
+    const tag = readUint16_b(b, e, le);
+    const type = readUint16_b(b, e+2, le);
+    const cnt = readUint32_b(b, e+4, le);
+    const valOff = e + 8;
+    const typeSizes = [0,1,1,2,4,8,1,1,2,4,8,4,8];
+    const tsz = (type < typeSizes.length ? typeSizes[type] : 1);
+    const dsize = tsz * cnt;
+    const doff = dsize > 4 ? base + readUint32_b(b, valOff, le) : valOff;
+    if (doff + dsize > b.length) continue;
+    if (tag === 0x010F) result.Make = readAscii_b(b, doff, cnt);
+    else if (tag === 0x0110) result.Model = readAscii_b(b, doff, cnt);
+    else if (tag === 0x9003 || tag === 0x0132) result.DateTimeOriginal = readAscii_b(b, doff, cnt);
+    else if (tag === 0x829A && type === 5) result.ExposureTime = readRational_b(b, doff, le);
+    else if (tag === 0x829D && type === 5) result.FNumber = readRational_b(b, doff, le);
+    else if (tag === 0x9202 && type === 5) result.ApertureValue = readRational_b(b, doff, le);
+    else if (tag === 0x8827) result.ISOSpeedRatings = type === 3 ? readUint16_b(b, doff, le) : readUint32_b(b, doff, le);
+    else if (tag === 0x920A && type === 5) result.FocalLength = readRational_b(b, doff, le);
+    else if (tag === 0xA405 && type === 3) result.FocalLengthIn35mm = readUint16_b(b, doff, le);
+    else if (tag === 0xA434) result.LensModel = readAscii_b(b, doff, cnt);
+    else if (tag === 0x8769 && type === 4) parseIfdFull(b, base, base + readUint32_b(b, valOff, le), le, result, depth + 1);
+    else if (tag === 0xA005 && type === 4) parseIfdFull(b, base, base + readUint32_b(b, valOff, le), le, result, depth + 1);
+  }
+}
+
+function buildMetaFromRaw(exif) {
+  const make = (exif.Make || '').replace(/\0/g, '').trim();
+  const model = (exif.Model || '').replace(/\0/g, '').trim();
+  const camera = model.toLowerCase().startsWith(make.toLowerCase()) ? model : [make, model].filter(Boolean).join(' ').trim() || null;
+  const lensModel = exif.LensModel || null;
+  let focalLength = null;
+  if (exif.FocalLength > 0) focalLength = Math.round(exif.FocalLength) + 'mm';
+  else if (exif.FocalLengthIn35mm > 0) focalLength = exif.FocalLengthIn35mm + 'mm';
+  let aperture = null;
+  if (exif.FNumber > 0) aperture = 'f/' + exif.FNumber.toFixed(1);
+  else if (exif.ApertureValue > 0) aperture = 'f/' + Math.pow(2, exif.ApertureValue / 2).toFixed(1);
+  let shutter = null;
+  if (exif.ExposureTime > 0) {
+    const val = exif.ExposureTime;
+    shutter = val >= 1 ? val.toFixed(0) + 's' : '1/' + Math.round(1 / val) + 's';
+  }
+  let iso = null;
+  if (exif.ISOSpeedRatings) iso = 'ISO ' + exif.ISOSpeedRatings;
+  let date = null;
+  if (exif.DateTimeOriginal) {
+    const parts = exif.DateTimeOriginal.split(' ');
+    if (parts[0]) {
+      const parsed = new Date(parts[0].replace(/:/g, '-'));
+      if (!isNaN(parsed)) date = parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+  }
+  return { camera, lensModel, focalLength, aperture, shutter, iso, date };
 }
 
 function processTiff(file) {
@@ -1447,30 +1751,38 @@ function processRaw(file) {
     try {
       const buffer = e.target.result;
       const bytes = new Uint8Array(buffer);
-      const meta = extractExifFromBuffer(bytes);
-      const jpegOffset = findEmbeddedJpeg(bytes);
+      const rawExif = extractExifFromBuffer(bytes);
+      const meta = buildMetaFromRaw(rawExif);
+      const { offset: jpegOffset, end: jpegEnd } = findEmbeddedJpeg(bytes);
       if (jpegOffset === -1) throw new Error('No embedded preview found in this RAW file.');
-      const jpegBytes = bytes.slice(jpegOffset);
+      const jpegBytes = bytes.slice(jpegOffset, jpegEnd);
       const blob = new Blob([jpegBytes], { type: 'image/jpeg' });
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.onload = () => {
-        URL.revokeObjectURL(url);
-        currentImg = img;
-        clearStatus();
-        const cardIsShowing = currentImg !== null;
-        if (cardIsShowing) {
-          renderCard(img, readEditFields());
-        } else {
-          populateEditFields(meta, false);
-          renderCard(img, meta);
-        }
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        showError('Found a RAW file but could not extract the embedded preview. Make sure the CR2 was not stripped of its preview.');
-      };
-      img.src = url;
+      createImageBitmap(blob).then(bitmap => {
+        const offscreen = document.createElement('canvas');
+        offscreen.width = bitmap.width;
+        offscreen.height = bitmap.height;
+        offscreen.getContext('2d').drawImage(bitmap, 0, 0);
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const cardIsShowing = currentImg !== null;
+            currentImg = img;
+            clearStatus();
+            if (cardIsShowing) {
+              renderCard(img, readEditFields());
+            } else {
+              populateEditFields(meta, false);
+              renderCard(img, meta);
+            }
+          } catch(err) {
+            console.error('renderCard error:', err);
+            showError('RAW render failed: ' + err.message);
+          }
+        };
+        img.src = offscreen.toDataURL('image/jpeg', 0.92);
+      }).catch(err => {
+        showError('Found a RAW file but could not extract the embedded preview.');
+      });
     } catch (err) {
       showError(`RAW decode failed: ${err.message}`);
     }
@@ -1632,15 +1944,43 @@ function readEditFields() {
   return meta;
 }
 
+function readEditFields2() {
+  const meta = {};
+  Object.entries(editFields2).forEach(([key, input]) => {
+    meta[key] = input.value.trim() || null;
+  });
+  return meta;
+}
+
+function hasDualColumn() {
+  return Object.values(editFields2).some(input => input && input.value.trim() !== '');
+}
+
 function findEmbeddedJpeg(bytes) {
-  for (let i = 0; i < bytes.length - 3; i++) {
+  let bestOffset = -1;
+  let bestEnd = -1;
+  let bestSize = 0;
+  const MAX_PREVIEW = 8 * 1024 * 1024;
+  let i = 0;
+  while (i < bytes.length - 3) {
     if (bytes[i] === 0xFF && bytes[i+1] === 0xD8 && bytes[i+2] === 0xFF) {
-      if (bytes[i+3] === 0xE0 || bytes[i+3] === 0xE1 || bytes[i+3] === 0xDB || bytes[i+3] === 0xC0) {
-        if (i > 100) return i;
+      if ((bytes[i+3] === 0xE0 || bytes[i+3] === 0xE1 || bytes[i+3] === 0xDB || bytes[i+3] === 0xC0 || bytes[i+3] === 0xC4) && i > 100) {
+        let end = -1;
+        const limit = Math.min(i + MAX_PREVIEW, bytes.length - 1);
+        for (let j = i + 2; j < limit; j++) {
+          if (bytes[j] === 0xFF && bytes[j+1] === 0xD9) { end = j + 2; break; }
+        }
+        if (end !== -1) {
+          const size = end - i;
+          if (size > bestSize) { bestSize = size; bestOffset = i; bestEnd = end; }
+          i = end;
+          continue;
+        }
       }
     }
+    i++;
   }
-  return -1;
+  return { offset: bestOffset, end: bestEnd };
 }
 
 function readUint16(bytes, offset, le) {
@@ -1662,6 +2002,12 @@ function readAscii(bytes, offset, length) {
 function readRational(bytes, offset, le) {
   const num = readUint32(bytes, offset, le);
   const den = readUint32(bytes, offset+4, le);
+  return den !== 0 ? num / den : 0;
+}
+
+function readSRational(bytes, offset, le) {
+  const num = readUint32(bytes, offset, le) | 0;
+  const den = readUint32(bytes, offset+4, le) | 0;
   return den !== 0 ? num / den : 0;
 }
 
@@ -1687,9 +2033,9 @@ function extractExifFromBuffer(bytes) {
 }
 
 function parseIfd(bytes, base, ifdOffset, le, result, depth) {
-  if (depth > 3 || ifdOffset + 2 > bytes.length) return;
+  if (depth > 4 || ifdOffset + 2 > bytes.length) return;
   const count = readUint16(bytes, ifdOffset, le);
-  if (count > 200) return;
+  if (count > 300 || count === 0) return;
   for (let i = 0; i < count; i++) {
     const entryOffset = ifdOffset + 2 + i * 12;
     if (entryOffset + 12 > bytes.length) break;
@@ -1701,15 +2047,29 @@ function parseIfd(bytes, base, ifdOffset, le, result, depth) {
     const typeSize = type < typeSizes.length ? typeSizes[type] : 1;
     const dataSize = typeSize * count2;
     const dataOffset = dataSize > 4 ? base + readUint32(bytes, valueOffset, le) : valueOffset;
+    if (dataOffset + dataSize > bytes.length) continue;
+
     if (tag === 0x010F) result.Make = readAscii(bytes, dataOffset, count2);
     else if (tag === 0x0110) result.Model = readAscii(bytes, dataOffset, count2);
-    else if (tag === 0x9003) result.DateTimeOriginal = readAscii(bytes, dataOffset, count2);
+    else if (tag === 0x9003 || tag === 0x0132) result.DateTimeOriginal = readAscii(bytes, dataOffset, count2);
     else if (tag === 0x829A && type === 5) result.ExposureTime = readRational(bytes, dataOffset, le);
-    else if (tag === 0x829D && type === 5) result.FNumber = readRational(bytes, dataOffset, le);
+    else if (tag === 0x829D && type === 5) {
+      const fn = readRational(bytes, dataOffset, le);
+      if (fn > 0) result.FNumber = fn;
+    }
+    else if (tag === 0x9202 && type === 5) {
+      const av = readSRational(bytes, dataOffset, le);
+      if (av > 0 && av < 32) result.ApertureValue = av;
+    }
     else if (tag === 0x8827) result.ISOSpeedRatings = type === 3 ? readUint16(bytes, dataOffset, le) : readUint32(bytes, dataOffset, le);
     else if (tag === 0x920A && type === 5) result.FocalLength = readRational(bytes, dataOffset, le);
+    else if (tag === 0xA405 && type === 3) result.FocalLengthIn35mm = readUint16(bytes, dataOffset, le);
     else if (tag === 0xA434) result.LensModel = readAscii(bytes, dataOffset, count2);
     else if (tag === 0x8769 && type === 4) {
+      const subOffset = base + readUint32(bytes, valueOffset, le);
+      parseIfd(bytes, base, subOffset, le, result, depth + 1);
+    }
+    else if (tag === 0xA005 && type === 4) {
       const subOffset = base + readUint32(bytes, valueOffset, le);
       parseIfd(bytes, base, subOffset, le, result, depth + 1);
     }
@@ -1732,7 +2092,7 @@ function extractMetaFromTiffIfd(ifd) {
   };
   const make = getString('t271') || '';
   const model = getString('t272') || '';
-  result.camera = [make, model].filter(Boolean).join(' ').trim() || null;
+  result.camera = model.toLowerCase().startsWith(make.toLowerCase()) ? model : [make, model].filter(Boolean).join(' ').trim() || null;
   result.lensModel = getString('ta434') || getString('t42036') || null;
   const fl = getRational('ta920a') || getRational('t37386');
   result.focalLength = fl ? fl.toFixed(0) + 'mm' : null;
@@ -1757,27 +2117,33 @@ function extractMetaFromTiffIfd(ifd) {
 function extractMeta(exif) {
   const make = exif.Make || '';
   const model = exif.Model || '';
-  const camera = [make, model].filter(Boolean).join(' ').trim() || null;
+  const camera = model.toLowerCase().startsWith(make.toLowerCase()) ? model : [make, model].filter(Boolean).join(' ').trim() || null;
   const lensModel = exif.LensModel || exif.Lens || null;
   let focalLength = null;
   if (exif.FocalLength) {
     const fl = exif.FocalLength;
-    focalLength = (typeof fl === 'object' ? (fl.numerator / fl.denominator) : fl).toFixed(0) + 'mm';
+    const flVal = typeof fl === 'object' ? (fl.numerator / fl.denominator) : fl;
+    if (flVal > 0) focalLength = flVal.toFixed(0) + 'mm';
+  }
+  if (!focalLength && exif.FocalLengthIn35mmFilm) {
+    focalLength = exif.FocalLengthIn35mmFilm + 'mm';
   }
   let aperture = null;
   if (exif.FNumber) {
     const fn = exif.FNumber;
-    aperture = 'f/' + (typeof fn === 'object' ? (fn.numerator / fn.denominator) : fn).toFixed(1);
-  } else if (exif.ApertureValue) {
+    const fnVal = typeof fn === 'object' ? (fn.numerator / fn.denominator) : fn;
+    if (fnVal > 0) aperture = 'f/' + fnVal.toFixed(1);
+  }
+  if (!aperture && exif.ApertureValue) {
     const av = exif.ApertureValue;
     const raw = typeof av === 'object' ? (av.numerator / av.denominator) : av;
-    aperture = 'f/' + Math.pow(2, raw / 2).toFixed(1);
+    if (raw > 0 && raw < 32) aperture = 'f/' + Math.pow(2, raw / 2).toFixed(1);
   }
   let shutter = null;
   if (exif.ExposureTime) {
     const et = exif.ExposureTime;
     const val = typeof et === 'object' ? (et.numerator / et.denominator) : et;
-    shutter = val >= 1 ? val.toFixed(0) + 's' : '1/' + Math.round(1 / val) + 's';
+    if (val > 0) shutter = val >= 1 ? val.toFixed(0) + 's' : '1/' + Math.round(1 / val) + 's';
   }
   let iso = null;
   if (exif.ISOSpeedRatings) {
@@ -1789,7 +2155,8 @@ function extractMeta(exif) {
     const parts = raw.split(' ');
     if (parts[0]) {
       const d = parts[0].replace(/:/g, '-');
-      date = new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+      const parsed = new Date(d);
+      if (!isNaN(parsed)) date = parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     }
   }
   return { camera, lensModel, focalLength, aperture, shutter, iso, date };
@@ -1840,9 +2207,73 @@ function renderCard(img, meta, useCustomPositions) {
   const contentTop = 220;
   const contentBottom = SIZE - 210;
   const availableH = contentBottom - contentTop;
-  const twoCol = specs.length > 7;
+  const dualMode = hasDualColumn();
+  const twoCol = !dualMode && specs.length > 7;
 
-  if (twoCol) {
+  if (dualMode) {
+    const meta2 = readEditFields2();
+    const specs2 = buildSpecs(meta2);
+    const col1Label = (efCol1Label && efCol1Label.value.trim()) || 'Sky';
+    const col2Label = (efCol2Label && efCol2Label.value.trim()) || 'Foreground';
+    const colCount = Math.max(specs.length, specs2.length);
+
+    const maxRowH = 90;
+    const minRowH = 48;
+    const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor((availableH - 60) / colCount)));
+    const scale = rowH / maxRowH;
+    const iconSize = Math.round(26 * scale);
+    const labelSize = Math.max(8, Math.round(10 * scale * labelScale));
+    const valueSize = Math.max(13, Math.round(20 * scale * textScale));
+
+    const totalBlockH = colCount * rowH;
+    const startY = Math.round(contentTop + 55 + (availableH - 55 - totalBlockH) / 2);
+
+    const colContentW = 420;
+    const colGap = 40;
+    const totalW = colContentW * 2 + colGap;
+    const col1X = SIZE / 2 - totalW / 2;
+    const col2X = col1X + colContentW + colGap;
+
+    const colLabelFontSize = Math.round(28 * labelScale);
+    ctx.font = `600 ${colLabelFontSize}px "Space Grotesk", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = textColor + '99';
+    ctx.fillText(col1Label, col1X + colContentW / 2, contentTop + 38);
+    ctx.fillText(col2Label, col2X + colContentW / 2, contentTop + 38);
+
+    ctx.strokeStyle = textColor + '22';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(col1X, contentTop + 48);
+    ctx.lineTo(col1X + colContentW, contentTop + 48);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(col2X, contentTop + 48);
+    ctx.lineTo(col2X + colContentW, contentTop + 48);
+    ctx.stroke();
+
+    ctx.strokeStyle = 'rgba(232,234,240,0.08)';
+    ctx.beginPath();
+    ctx.moveTo(SIZE / 2, contentTop + 48);
+    ctx.lineTo(SIZE / 2, startY + totalBlockH - rowH * 0.3);
+    ctx.stroke();
+
+    [specs, specs2].forEach((col, colIdx) => {
+      const colX = colIdx === 0 ? col1X : col2X;
+      col.forEach((item, i) => {
+        const y = startY + i * rowH;
+        drawIcon(ctx, item.icon, colX, y + Math.round(rowH * 0.1), iconSize);
+        ctx.textAlign = 'left';
+        ctx.font = `500 ${labelSize}px "Space Mono", monospace`;
+        ctx.fillStyle = textColor + '66';
+        ctx.fillText(item.label.toUpperCase(), colX + iconSize + 10, y + Math.round(rowH * 0.32));
+        ctx.font = `bold ${valueSize}px "Space Grotesk", sans-serif`;
+        ctx.fillStyle = textColor;
+        ctx.fillText(item.value, colX + iconSize + 10, y + Math.round(rowH * 0.72), colContentW - iconSize - 16);
+      });
+    });
+
+  } else if (twoCol) {
     const col1 = specs.slice(0, Math.ceil(specs.length / 2));
     const col2 = specs.slice(Math.ceil(specs.length / 2));
     const colCount = Math.max(col1.length, col2.length);
