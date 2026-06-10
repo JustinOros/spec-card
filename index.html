@@ -1588,10 +1588,10 @@ function processStandard(file) {
 
   bufReader.onload = e => {
     bufReader._bytes = new Uint8Array(e.target.result);
-    dataReader.readAsDataURL(file);
   };
 
   bufReader.readAsArrayBuffer(file);
+  dataReader.readAsDataURL(file);
 }
 
 function extractExifFromJpegBuffer(bytes) {
@@ -1704,6 +1704,27 @@ function buildMetaFromRaw(exif) {
   return { camera, lensModel, focalLength, aperture, shutter, iso, date };
 }
 
+function extractTiffStringTag(bytes, targetTag) {
+  if (bytes.length < 8) return null;
+  const le = bytes[0] === 0x49;
+  const r16 = o => le ? bytes[o]|(bytes[o+1]<<8) : (bytes[o]<<8)|bytes[o+1];
+  const r32 = o => (le ? bytes[o]|(bytes[o+1]<<8)|(bytes[o+2]<<16)|(bytes[o+3]<<24) : (bytes[o]<<24)|(bytes[o+1]<<16)|(bytes[o+2]<<8)|bytes[o+3]) >>> 0;
+  const ifd0 = r32(4);
+  if (ifd0 + 2 > bytes.length) return null;
+  const count = r16(ifd0);
+  for (let i = 0; i < Math.min(count, 64); i++) {
+    const e = ifd0 + 2 + i * 12;
+    if (e + 12 > bytes.length) break;
+    if (r16(e) === targetTag && r16(e+2) === 2) {
+      const cnt = r32(e+4);
+      const doff = cnt > 4 ? r32(e+8) : e+8;
+      if (doff + cnt > bytes.length) return null;
+      return new TextDecoder('latin1').decode(bytes.slice(doff, doff+cnt)).replace(/\0/g,'').trim();
+    }
+  }
+  return null;
+}
+
 function processTiff(file) {
   const reader = new FileReader();
   reader.onload = e => {
@@ -1724,12 +1745,22 @@ function processTiff(file) {
       const imgData = tempCtx.createImageData(w, h);
       imgData.data.set(rgba);
       tempCtx.putImageData(imgData, 0, 0);
-      const meta = extractMetaFromTiffIfd(ifd);
+      const meta = (() => {
+        const tiffMeta = extractMetaFromTiffIfd(ifd);
+        const hasData = !!(tiffMeta.camera || tiffMeta.shutter || tiffMeta.iso || tiffMeta.focalLength);
+        if (hasData) return tiffMeta;
+        const descBytes = new Uint8Array(buffer);
+        const descTag = extractTiffStringTag(descBytes, 0x010E);
+        if (descTag && descTag.includes('SIMPLE')) {
+          try { return parseFitsHeader(descTag); } catch(e) {}
+        }
+        return tiffMeta;
+      })();
       const img = new Image();
       img.onload = () => {
+        const cardIsShowing = currentImg !== null;
         currentImg = img;
         clearStatus();
-        const cardIsShowing = currentImg !== null;
         if (cardIsShowing) {
           renderCard(img, readEditFields());
         } else {
@@ -1814,10 +1845,15 @@ function processFits(file) {
 
 function parseFitsHeader(text) {
   const meta = {};
-  const cards = [];
-  for (let i = 0; i + 80 <= text.length; i += 80) {
-    cards.push(text.slice(i, i + 80));
+
+  const isFixed = text.length >= 80 && !text.slice(0, 80).includes('\n');
+  let cards = [];
+  if (isFixed) {
+    for (let i = 0; i + 80 <= text.length; i += 80) cards.push(text.slice(i, i + 80));
+  } else {
+    cards = text.split('\n').map(l => l.padEnd(80));
   }
+
   const get = key => {
     const card = cards.find(c => c.slice(0,8).trim() === key);
     if (!card) return null;
@@ -1854,7 +1890,7 @@ function parseFitsHeader(text) {
   const stackcnt = getNum('STACKCNT') || getNum('NCOMBINE') || getNum('NFRAMES');
   meta.frames = stackcnt ? stackcnt + ' frames' : null;
 
-  const totalexp = getNum('TOTALEXP');
+  const totalexp = getNum('TOTALEXP') || getNum('LIVETIME');
   if (totalexp !== null) {
     const h = Math.floor(totalexp / 3600);
     const m = Math.floor((totalexp % 3600) / 60);
@@ -1867,7 +1903,7 @@ function parseFitsHeader(text) {
   }
 
   const gain = getNum('GAIN');
-  const iso = getNum('ISO');
+  const iso = getNum('ISO') || getNum('ISOSPEED');
   if (iso !== null) meta.iso = 'ISO ' + iso;
   else if (gain !== null) meta.iso = 'Gain ' + gain;
   else meta.iso = null;
