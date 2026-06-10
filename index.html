@@ -165,9 +165,111 @@
     overflow: hidden;
     box-shadow: 0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06);
     background: #000;
+    position: relative;
+  }
+
+  #canvas-outer {
+    position: relative;
+    width: 100%;
   }
 
   #preview-canvas { display: block; width: 100%; height: auto; }
+
+  #trash-zone {
+    display: none;
+    position: absolute;
+    bottom: -56px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: rgba(220, 60, 60, 0.15);
+    border: 1.5px dashed rgba(220, 80, 80, 0.4);
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    cursor: default;
+    z-index: 200;
+  }
+
+  #trash-zone.active {
+    display: flex;
+  }
+
+  #trash-zone.over {
+    background: rgba(220, 60, 60, 0.45);
+    border-color: rgba(220, 80, 80, 0.9);
+    transform: translateX(-50%) scale(1.15);
+  }
+
+  #trash-zone svg {
+    opacity: 0.7;
+  }
+
+  #trash-zone.over svg {
+    opacity: 1;
+  }
+
+  .drag-item {
+    position: absolute;
+    cursor: grab;
+    user-select: none;
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    padding: 6px 8px;
+    border-radius: 6px;
+    transition: background 0.1s;
+  }
+
+  .drag-item:hover {
+    background: rgba(255,255,255,0.06);
+  }
+
+  .drag-item.dragging {
+    cursor: grabbing;
+    background: rgba(200,169,110,0.12);
+    outline: 1px dashed rgba(200,169,110,0.4);
+    z-index: 100;
+    opacity: 0.85;
+  }
+
+  .drag-item .snap-indicator {
+    display: none;
+  }
+
+  .drag-grid-hint {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  #drag-layer.dragging-active .drag-grid-hint {
+    opacity: 1;
+  }
+
+  .drag-handle-icon {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    opacity: 0;
+    font-size: 10px;
+    color: rgba(200,169,110,0.6);
+    pointer-events: none;
+    font-family: monospace;
+  }
+
+  .drag-item:hover .drag-handle-icon {
+    opacity: 1;
+  }
+
+  @media (hover: none) {
+    .drag-item { cursor: default; }
+    .drag-handle-icon { display: none; }
+  }
 
   .actions {
     display: flex;
@@ -381,6 +483,67 @@
 
   .btn-regenerate:hover { background: rgba(200,169,110,0.18); }
 
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 18px;
+    gap: 12px;
+  }
+
+  .toggle-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 10px 14px;
+    cursor: pointer;
+  }
+
+  .toggle-item input[type=checkbox] { display: none; }
+
+  .toggle-switch {
+    width: 36px;
+    height: 20px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    position: relative;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+
+  .toggle-switch::after {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    background: #fff;
+    border-radius: 50%;
+    top: 3px;
+    left: 3px;
+    transition: transform 0.2s;
+  }
+
+  .toggle-item input:checked + .toggle-switch {
+    background: var(--accent);
+  }
+
+  .toggle-item input:checked + .toggle-switch::after {
+    transform: translateX(16px);
+  }
+
+  .toggle-label {
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
   .fits-notice {
     font-size: 12px;
     color: var(--muted);
@@ -543,7 +706,7 @@
   <div class="wordmark">Camera Spec Card Generator</div>
   <div style="font-size:12px; font-weight:300; color:rgba(232,234,240,0.4); letter-spacing:0.08em; margin-bottom:18px;">by Justin Oros</div>
   <h1>Turn any photo into<br>a <span>camera spec card</span></h1>
-  <p class="subtitle">Drop a photo (and/or Siril FIT file). We'll read its EXIF metadata and generate a shareable spec overlay — perfect for Instagram.</p>
+  <p class="subtitle">Drop a photo for your spec-card background. Optionally, drop a Siril FIT file. We'll read its EXIF metadata and generate a shareable spec overlay, perfect for Instagram.</p>
 </header>
 
 <div class="drop-zone" id="drop-zone">
@@ -571,8 +734,21 @@
 <div id="output-section">
   <div class="section-divider">Your spec card</div>
   <div id="status-container"></div>
-  <div id="canvas-wrapper" style="display:none;">
-    <canvas id="preview-canvas"></canvas>
+  <div id="canvas-outer">
+    <div id="canvas-wrapper" style="display:none;">
+      <canvas id="preview-canvas"></canvas>
+      <div id="drag-layer">
+        <canvas class="drag-grid-hint" id="grid-canvas"></canvas>
+      </div>
+    </div>
+    <div id="trash-zone">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ff6b6b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        <path d="M10 11v6M14 11v6"/>
+        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+      </svg>
+    </div>
   </div>
   <div class="canvas-tap-hint" id="tap-hint" style="display:none;">Tap any field on the card to edit it</div>
   <div class="actions" id="card-actions" style="display:none;">
@@ -587,7 +763,7 @@
     <div class="edit-grid">
       <div class="edit-field" style="grid-column: 1 / -1;">
         <label>Header text (shown at top of card)</label>
-        <input type="text" id="ef-header" placeholder="e.g. @FateOfAstrophilia or SPEC CARD">
+        <input type="text" id="ef-header" placeholder="e.g. @FateOfAstrophilia or SPEC CARD" value="SPEC CARD">
       </div>
       <div class="edit-field">
         <label>Camera / Scope</label>
@@ -647,7 +823,7 @@
       </div>
       <div class="edit-field" style="grid-column: 1 / -1;">
         <label>Footer text (IG handle, website, anything)</label>
-        <input type="text" id="ef-footer" placeholder="e.g. @FateOfAstrophilia or your website">
+        <input type="text" id="ef-footer" placeholder="e.g. @FateOfAstrophilia or your website" value="@FateOfAstrophilia">
       </div>
       <div class="edit-field">
         <label>Icon color</label>
@@ -659,19 +835,30 @@
       </div>
     </div>
     <div class="slider-row">
-      <label>Text size <span id="textsize-val">100%</span></label>
+      <label>Label &amp; header size <span id="labelsize-val">100%</span></label>
+      <input type="range" id="slider-labelsize" min="60" max="140" value="100" step="1">
+    </div>
+    <div class="slider-row">
+      <label>Value text size <span id="textsize-val">100%</span></label>
       <input type="range" id="slider-textsize" min="60" max="140" value="100" step="1">
     </div>
     <div class="slider-row">
       <label>Background blur <span id="blur-val">5px</span></label>
       <input type="range" id="slider-blur" min="0" max="60" value="5" step="1">
     </div>
-    <button class="btn-regenerate" id="regenerate-btn">↺ Update card</button>
-    <div class="bg-drop-zone" id="bg-drop-zone">
-      <span>Background image</span>
-      Drop or click to swap the card background — image data only, no EXIF needed
-      <input type="file" id="bg-file-input" accept="image/*" style="display:none;">
+    <div class="toggle-row">
+      <label class="toggle-item">
+        <input type="checkbox" id="toggle-header" checked>
+        <div class="toggle-switch"></div>
+        <span class="toggle-label">Header line</span>
+      </label>
+      <label class="toggle-item">
+        <input type="checkbox" id="toggle-footer" checked>
+        <div class="toggle-switch"></div>
+        <span class="toggle-label">Footer line</span>
+      </label>
     </div>
+    <button class="btn-regenerate" id="regenerate-btn">↺ Update card</button>
   </div>
 
   <a class="ig-link" id="ig-link-bottom" style="display:none; margin-top:16px;" href="https://www.instagram.com/FateOfAstrophilia" target="_blank" rel="noopener">
@@ -685,10 +872,17 @@
 </div>
 <script src="https://cdn.jsdelivr.net/npm/utif2@4.1.0/UTIF.js"></script>
 <script>
+const isMobile = () => window.matchMedia('(hover: none)').matches;
+const dragLayer = document.getElementById('drag-layer');
+const gridCanvas = document.getElementById('grid-canvas');
+const trashZone = document.getElementById('trash-zone');
+const GRID = 40;
+let dragItems = [];
+let dragState = null;
+let customDragPositions = {};
+
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
-const bgDropZone = document.getElementById('bg-drop-zone');
-const bgFileInput = document.getElementById('bg-file-input');
 const outputSection = document.getElementById('output-section');
 const canvasWrapper = document.getElementById('canvas-wrapper');
 const canvas = document.getElementById('preview-canvas');
@@ -728,15 +922,41 @@ const tapHint = document.getElementById('tap-hint');
 const igLinkTop = document.getElementById('ig-link-top');
 const igLinkBottom = document.getElementById('ig-link-bottom');
 const sliderTextSize = document.getElementById('slider-textsize');
+const sliderLabelSize = document.getElementById('slider-labelsize');
 const sliderBlur = document.getElementById('slider-blur');
+const toggleHeader = document.getElementById('toggle-header');
+const toggleFooter = document.getElementById('toggle-footer');
 const textsizeVal = document.getElementById('textsize-val');
+const labelsizeVal = document.getElementById('labelsize-val');
 const blurVal = document.getElementById('blur-val');
 
 let currentFilename = 'spec-card.jpg';
 let currentImg = null;
 let currentMeta = {};
 let textScale = 1.0;
+let labelScale = 1.4;
 let blurAmount = 5;
+let showHeader = true;
+let showFooter = true;
+
+Object.entries(editFields).forEach(([key, input]) => {
+  if (!input) return;
+  input.addEventListener('input', () => {
+    input.classList.toggle('has-value', !!input.value);
+    if (key === 'camera' && input.value) {
+      delete input.dataset.hidden;
+    }
+    if (key === 'header') {
+      delete customDragPositions['header'];
+    }
+    if (key === 'footer') {
+      const footerVal = input.value.trim();
+      if (footerVal) localStorage.setItem('speccard_footer', footerVal);
+      else localStorage.removeItem('speccard_footer');
+    }
+    if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
+  });
+});
 let iconColor = '#c8a96e';
 let textColor = '#e8eaf0';
 
@@ -790,30 +1010,6 @@ document.addEventListener('drop', e => {
   }
 });
 
-bgDropZone.addEventListener('click', () => bgFileInput.click());
-
-bgDropZone.addEventListener('dragover', e => {
-  e.preventDefault();
-  e.stopPropagation();
-  bgDropZone.classList.add('drag-over');
-});
-
-bgDropZone.addEventListener('dragleave', () => bgDropZone.classList.remove('drag-over'));
-
-bgDropZone.addEventListener('drop', e => {
-  e.preventDefault();
-  e.stopPropagation();
-  bgDropZone.classList.remove('drag-over');
-  const file = e.dataTransfer.files[0];
-  if (file) swapBackground(file);
-});
-
-bgFileInput.addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (file) swapBackground(file);
-  bgFileInput.value = '';
-});
-
 function swapBackground(file) {
   const reader = new FileReader();
   reader.onload = e => {
@@ -848,13 +1044,25 @@ resetBtn.addEventListener('click', () => {
   currentFilename = 'spec-card.jpg';
   currentImg = null;
   currentMeta = {};
+  dragItems = [];
+  dragLayer.innerHTML = '';
+  customDragPositions = {};
+  if (editFields.camera) delete editFields.camera.dataset.hidden;
   clearStatus();
   blurAmount = 5;
   iconColor = '#c8a96e';
   textColor = '#e8eaf0';
+  showHeader = true;
+  showFooter = true;
+  toggleHeader.checked = true;
+  toggleFooter.checked = true;
+  textScale = 1.0;
+  labelScale = 1.4;
   sliderTextSize.value = 100;
-  sliderBlur.value = 10;
+  sliderLabelSize.value = 140;
+  sliderBlur.value = 5;
   textsizeVal.textContent = '100%';
+  labelsizeVal.textContent = '140%';
   blurVal.textContent = '5px';
   Object.values(editFields).forEach(f => { f.value = ''; f.classList.remove('has-value'); });
 });
@@ -886,20 +1094,64 @@ uploadAnyInput.addEventListener('change', e => {
 regenerateBtn.addEventListener('click', () => {
   if (!currentImg) return;
   const meta = readEditFields();
-  renderCard(currentImg, meta);
+  renderCard(currentImg, meta, Object.keys(customDragPositions).length > 0);
 });
 
 sliderTextSize.addEventListener('input', () => {
   textScale = sliderTextSize.value / 100;
   textsizeVal.textContent = sliderTextSize.value + '%';
-  if (currentImg) renderCard(currentImg, readEditFields());
+  if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
+});
+
+sliderLabelSize.addEventListener('input', () => {
+  labelScale = sliderLabelSize.value / 100;
+  labelsizeVal.textContent = sliderLabelSize.value + '%';
+  if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
 });
 
 sliderBlur.addEventListener('input', () => {
   blurAmount = parseInt(sliderBlur.value);
   blurVal.textContent = blurAmount + 'px';
-  if (currentImg) renderCard(currentImg, readEditFields());
+  if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
 });
+
+toggleHeader.addEventListener('change', () => {
+  showHeader = toggleHeader.checked;
+  if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
+});
+
+toggleFooter.addEventListener('change', () => {
+  showFooter = toggleFooter.checked;
+  if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
+});
+
+function makeSliderTappable(slider) {
+  slider.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = slider.getBoundingClientRect();
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+    slider.value = Math.round(min + pct * (max - min));
+    slider.dispatchEvent(new Event('input'));
+  }, { passive: false });
+
+  slider.addEventListener('touchmove', e => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = slider.getBoundingClientRect();
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    const pct = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+    slider.value = Math.round(min + pct * (max - min));
+    slider.dispatchEvent(new Event('input'));
+  }, { passive: false });
+}
+
+makeSliderTappable(sliderTextSize);
+makeSliderTappable(sliderLabelSize);
+makeSliderTappable(sliderBlur);
 
 editFields.iconColor.addEventListener('input', () => {
   const val = editFields.iconColor.value.trim();
@@ -908,7 +1160,7 @@ editFields.iconColor.addEventListener('input', () => {
   } else if (/^#[0-9a-fA-F]{6}$/.test(val)) {
     iconColor = val;
   }
-  if (currentImg) renderCard(currentImg, readEditFields());
+  if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
 });
 
 editFields.textColor.addEventListener('input', () => {
@@ -918,7 +1170,7 @@ editFields.textColor.addEventListener('input', () => {
   } else if (/^#[0-9a-fA-F]{6}$/.test(val)) {
     textColor = val;
   }
-  if (currentImg) renderCard(currentImg, readEditFields());
+  if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
 });
 
 const CARD_REGION_KEYS = [
@@ -943,13 +1195,13 @@ const CARD_REGION_KEYS = [
 function getCardRegions() {
   const SIZE = 1080;
   const specs = buildSpecs(readEditFields());
-  const contentTop = 120;
-  const contentBottom = SIZE - 110;
+  const contentTop = 220;
+  const contentBottom = SIZE - 210;
   const availableH = contentBottom - contentTop;
   const twoCol = specs.length > 7;
 
   const regions = [
-    { key: 'header', label: 'Header text', yStart: 0, yEnd: 110 / SIZE },
+    { key: 'header', label: 'Header text', yStart: 0, yEnd: 210 / SIZE },
   ];
 
   if (twoCol) {
@@ -993,7 +1245,7 @@ function getCardRegions() {
     });
   }
 
-  regions.push({ key: 'footer', label: 'Footer (IG / website)', yStart: (SIZE - 110) / SIZE, yEnd: 1 });
+  regions.push({ key: 'footer', label: 'Footer (IG / website)', yStart: (SIZE - 210) / SIZE, yEnd: 1 });
   return regions;
 }
 
@@ -1039,7 +1291,7 @@ function showFieldOverlay(key, label) {
     if (editFields[key] && currentImg) {
       editFields[key].value = input.value;
       editFields[key].classList.toggle('has-value', !!input.value);
-      renderCard(currentImg, readEditFields());
+      renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
     }
   });
 
@@ -1053,7 +1305,7 @@ function showFieldOverlay(key, label) {
       editFields[key].classList.toggle('has-value', !!val);
     }
     const meta = readEditFields();
-    renderCard(currentImg, meta);
+    renderCard(currentImg, meta, Object.keys(customDragPositions).length > 0);
     close();
   };
 
@@ -1113,27 +1365,34 @@ function processStandard(file) {
   reader.onload = e => {
     const img = new Image();
     img.onload = () => {
-      const cardIsShowing = outputSection.style.display && outputSection.style.display !== 'none';
-      if (cardIsShowing) {
+      if (currentImg !== null) {
         currentImg = img;
         clearStatus();
         renderCard(img, readEditFields());
         return;
       }
-      EXIF.getData(img, function() {
-        const exif = EXIF.getAllTags(this);
-        const meta = extractMeta(exif);
-        const hasExif = !!(meta.camera || meta.aperture || meta.shutter || meta.iso || meta.focalLength);
-        currentImg = img;
-        clearStatus();
-        if (hasExif) {
-          populateEditFields(meta, false);
-          renderCard(img, meta);
-        } else {
-          if (editPanel.style.display === 'none') populateEditFields({}, false);
+      currentImg = img;
+      clearStatus();
+      try {
+        EXIF.getData(img, function() {
+          const exif = EXIF.getAllTags(this);
+          const meta = extractMeta(exif);
+          const hasExif = !!(meta.camera || meta.aperture || meta.shutter || meta.iso || meta.focalLength);
+          if (hasExif) {
+            populateEditFields(meta, false);
+            renderCard(img, meta);
+          } else {
+            renderCard(img, readEditFields());
+          }
+        });
+      } catch(err) {
+        renderCard(img, readEditFields());
+      }
+      setTimeout(() => {
+        if (canvasWrapper.style.display === 'none') {
           renderCard(img, readEditFields());
         }
-      });
+      }, 1500);
     };
     img.onerror = () => showError('Could not decode this image. Try saving it as a JPEG or PNG first.');
     img.src = e.target.result;
@@ -1166,7 +1425,7 @@ function processTiff(file) {
       img.onload = () => {
         currentImg = img;
         clearStatus();
-        const cardIsShowing = outputSection.style.display && outputSection.style.display !== 'none';
+        const cardIsShowing = currentImg !== null;
         if (cardIsShowing) {
           renderCard(img, readEditFields());
         } else {
@@ -1199,7 +1458,7 @@ function processRaw(file) {
         URL.revokeObjectURL(url);
         currentImg = img;
         clearStatus();
-        const cardIsShowing = outputSection.style.display && outputSection.style.display !== 'none';
+        const cardIsShowing = currentImg !== null;
         if (cardIsShowing) {
           renderCard(img, readEditFields());
         } else {
@@ -1344,22 +1603,23 @@ function populateEditFields(meta, isFits) {
   fitsNotice.style.display = 'none';
   const savedFooter = localStorage.getItem('speccard_footer');
   const currentFooterVal = editFields.footer ? editFields.footer.value.trim() : '';
+  const currentHeaderVal = editFields.header ? editFields.header.value.trim() : '';
   if (!meta.footer) meta.footer = currentFooterVal || savedFooter || '@FateOfAstrophilia';
-  if (!meta.header) meta.header = 'SPEC CARD';
+  if (!meta.header) meta.header = currentHeaderVal || 'SPEC CARD';
   currentMeta = meta;
+
+  const specs = buildSpecs(meta);
+  const autoScale = specs.length <= 7 ? 1.4 : 1.0;
+  textScale = 1.0;
+  labelScale = autoScale;
+  sliderTextSize.value = 100;
+  sliderLabelSize.value = Math.round(autoScale * 100);
+  textsizeVal.textContent = '100%';
+  labelsizeVal.textContent = Math.round(autoScale * 100) + '%';
   Object.entries(editFields).forEach(([key, input]) => {
     const val = meta[key] || '';
     input.value = val;
     input.classList.toggle('has-value', !!val);
-    input.addEventListener('input', () => {
-      input.classList.toggle('has-value', !!input.value);
-      if (key === 'footer') {
-        const footerVal = input.value.trim();
-        if (footerVal) localStorage.setItem('speccard_footer', footerVal);
-        else localStorage.removeItem('speccard_footer');
-      }
-      if (currentImg) renderCard(currentImg, readEditFields());
-    });
   });
   editPanel.style.display = 'block';
 }
@@ -1535,7 +1795,7 @@ function extractMeta(exif) {
   return { camera, lensModel, focalLength, aperture, shutter, iso, date };
 }
 
-function renderCard(img, meta) {
+function renderCard(img, meta, useCustomPositions) {
   const SIZE = 1080;
   canvas.width = SIZE;
   canvas.height = SIZE;
@@ -1549,27 +1809,36 @@ function renderCard(img, meta) {
   ctx.fillStyle = 'rgba(8, 10, 16, 0.55)';
   ctx.fillRect(0, 0, SIZE, SIZE);
 
-  const headerFontSize = Math.round(22 * textScale);
-  ctx.textAlign = 'center';
-  ctx.fillStyle = textColor + '59';
-  ctx.font = `400 ${headerFontSize}px "Space Mono", monospace`;
-  ctx.fillText((meta.header || 'SPEC CARD').toUpperCase(), SIZE / 2, 80);
-
-  ctx.strokeStyle = iconColor + '59';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(80, 100);
-  ctx.lineTo(SIZE - 80, 100);
-  ctx.stroke();
-
-  ctx.fillStyle = iconColor + '33';
-  ctx.beginPath();
-  ctx.arc(SIZE / 2, 100, 3, 0, Math.PI * 2);
-  ctx.fill();
-
   const specs = buildSpecs(meta);
-  const contentTop = 120;
-  const contentBottom = SIZE - 110;
+
+  const headerFontSize = Math.round(22 * labelScale);
+  const headerText = meta.header ? meta.header.trim() : '';
+  if (headerText) {
+    const headerDrag = useCustomPositions && customDragPositions['header'];
+    const headerX = headerDrag ? headerDrag.canvasX + 200 : SIZE / 2;
+    const headerY = headerDrag ? headerDrag.canvasY + 36 : 180;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = textColor + '59';
+    ctx.font = `400 ${headerFontSize}px "Space Mono", monospace`;
+    ctx.fillText(headerText, headerX, headerY);
+  }
+  if (showHeader) {
+    const headerBarDrag = useCustomPositions && customDragPositions['header-bar'];
+    const headerLineY = headerBarDrag ? headerBarDrag.canvasY + 8 : 200;
+    ctx.strokeStyle = iconColor + '59';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(80, headerLineY);
+    ctx.lineTo(SIZE - 80, headerLineY);
+    ctx.stroke();
+    ctx.fillStyle = iconColor + '33';
+    ctx.beginPath();
+    ctx.arc(SIZE / 2, headerLineY, 3, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const contentTop = 220;
+  const contentBottom = SIZE - 210;
   const availableH = contentBottom - contentTop;
   const twoCol = specs.length > 7;
 
@@ -1583,7 +1852,7 @@ function renderCard(img, meta) {
     const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / colCount)));
     const scale = rowH / maxRowH;
     const iconSize = Math.round(28 * scale);
-    const labelSize = Math.max(8, Math.round(11 * scale * textScale));
+    const labelSize = Math.max(8, Math.round(11 * scale * labelScale));
     const valueSize = Math.max(14, Math.round(22 * scale * textScale));
 
     const totalBlockH = colCount * rowH;
@@ -1605,16 +1874,19 @@ function renderCard(img, meta) {
     [col1, col2].forEach((col, colIdx) => {
       const colX = colIdx === 0 ? col1X : col2X;
       col.forEach((item, i) => {
-        const y = startY + i * rowH;
-        drawIcon(ctx, item.icon, colX, y + Math.round(rowH * 0.1), iconSize);
+        const defaultY = startY + i * rowH;
+        const custom = useCustomPositions && customDragPositions[item.key];
+        const drawX = custom ? custom.canvasX : colX;
+        const drawY = custom ? custom.canvasY : defaultY;
+        drawIcon(ctx, item.icon, drawX, drawY + Math.round(rowH * 0.1), iconSize);
         ctx.textAlign = 'left';
         ctx.font = `500 ${labelSize}px "Space Mono", monospace`;
         ctx.fillStyle = textColor + '66';
-        ctx.fillText(item.label.toUpperCase(), colX + iconSize + 12, y + Math.round(rowH * 0.3));
+        ctx.fillText(item.label.toUpperCase(), drawX + iconSize + 12, drawY + Math.round(rowH * 0.3));
         ctx.font = `bold ${valueSize}px "Space Grotesk", sans-serif`;
         ctx.fillStyle = textColor;
         const maxW = colContentW - iconSize - 20;
-        ctx.fillText(item.value, colX + iconSize + 12, y + Math.round(rowH * 0.68), maxW);
+        ctx.fillText(item.value, drawX + iconSize + 12, drawY + Math.round(rowH * 0.68), maxW);
       });
     });
   } else {
@@ -1623,7 +1895,7 @@ function renderCard(img, meta) {
     const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / specs.length)));
     const scale = rowH / maxRowH;
     const iconSize = Math.round(34 * scale);
-    const labelSize = Math.max(9, Math.round(12 * scale * textScale));
+    const labelSize = Math.max(9, Math.round(12 * scale * labelScale));
     const valueSize = Math.max(16, Math.round(26 * scale * textScale));
     const blockW = 300;
     const x = SIZE / 2 - blockW / 2;
@@ -1631,73 +1903,90 @@ function renderCard(img, meta) {
     const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
 
     specs.forEach((item, i) => {
-      const y = startY + i * rowH;
-      drawIcon(ctx, item.icon, x, y + Math.round(rowH * 0.1), iconSize);
+      const defaultY = startY + i * rowH;
+      const custom = useCustomPositions && customDragPositions[item.key];
+      const drawX = custom ? custom.canvasX : x;
+      const drawY = custom ? custom.canvasY : defaultY;
+      drawIcon(ctx, item.icon, drawX, drawY + Math.round(rowH * 0.1), iconSize);
       ctx.textAlign = 'left';
       ctx.font = `500 ${labelSize}px "Space Mono", monospace`;
       ctx.fillStyle = textColor + '66';
-      ctx.fillText(item.label.toUpperCase(), x + iconSize + 16, y + Math.round(rowH * 0.3));
+      ctx.fillText(item.label.toUpperCase(), drawX + iconSize + 16, drawY + Math.round(rowH * 0.3));
       ctx.font = `bold ${valueSize}px "Space Grotesk", sans-serif`;
       ctx.fillStyle = textColor;
-      ctx.fillText(item.value, x + iconSize + 16, y + Math.round(rowH * 0.68));
+      ctx.fillText(item.value, drawX + iconSize + 16, drawY + Math.round(rowH * 0.68));
     });
   }
 
-  const footerLineY = SIZE - 100;
-  const footerTextY = SIZE - 52;
-  const footerText = meta.footer || '@FateOfAstrophilia';
-  const footerFontSize = Math.round(20 * textScale);
+  const footerLineY = SIZE - 200;
+  const footerTextY = SIZE - 152;
+  const footerFontSize = Math.round(20 * labelScale);
+  const footerText = (meta.footer || '').trim();
 
-  ctx.font = `300 ${footerFontSize}px "Space Grotesk", sans-serif`;
-  const ftextW = ctx.measureText(footerText).width;
-  const ficonSz = Math.round(24 * textScale);
-  const fgap = 10;
-  const ftotalW = ficonSz + fgap + ftextW;
-  const ficonX = SIZE / 2 - ftotalW / 2;
-  const ftextX = ficonX + ficonSz + fgap;
-  const fiy = footerTextY - ficonSz * 0.72;
+  if (showFooter) {
+    const footerBarDrag = useCustomPositions && customDragPositions['footer-bar'];
+    const footerBarY = footerBarDrag ? footerBarDrag.canvasY + 8 : footerLineY;
+    ctx.strokeStyle = iconColor + '4d';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(80, footerBarY);
+    ctx.lineTo(SIZE - 80, footerBarY);
+    ctx.stroke();
+    ctx.fillStyle = iconColor + '2e';
+    const dotR = 3;
+    ctx.beginPath();
+    ctx.arc(SIZE / 2, footerBarY, dotR, 0, Math.PI * 2);
+    ctx.fill();
+  }
 
-  ctx.save();
-  ctx.strokeStyle = iconColor + '66';
-  ctx.lineWidth = 1.3;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  const fic = ficonX + ficonSz / 2;
-  const fim = fiy + ficonSz / 2;
-  const fir = ficonSz / 2;
-  ctx.beginPath();
-  ctx.roundRect(ficonX + 1, fim - fir * 0.55, ficonSz - 2, ficonSz * 0.78, 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.arc(fic, fim + fir * 0.06, fir * 0.3, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.roundRect(ficonX + ficonSz * 0.27, fim - fir * 0.55 - fir * 0.22, ficonSz * 0.28, fir * 0.26, 1);
-  ctx.stroke();
-  ctx.restore();
+  if (footerText) {
+    const footerDrag = useCustomPositions && customDragPositions['footer'];
+    const footerDrawY = footerDrag ? footerDrag.canvasY + 36 : footerTextY;
+    const footerCenterX = footerDrag ? footerDrag.canvasX + 240 : SIZE / 2;
 
-  ctx.textAlign = 'left';
-  ctx.font = `300 ${footerFontSize}px "Space Grotesk", sans-serif`;
-  ctx.fillStyle = textColor + '66';
-  ctx.fillText(footerText, ftextX, footerTextY);
+    ctx.font = `300 ${footerFontSize}px "Space Grotesk", sans-serif`;
+    const ftextW = ctx.measureText(footerText).width;
+    const ficonSz = Math.round(24 * labelScale);
+    const fgap = 10;
+    const ftotalW = ficonSz + fgap + ftextW;
+    const ficonX = footerCenterX - ftotalW / 2;
+    const ftextX = ficonX + ficonSz + fgap;
+    const fim = footerDrawY - ficonSz * 0.3;
+    const fiy = fim - ficonSz / 2;
 
-  ctx.strokeStyle = iconColor + '4d';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(80, footerLineY);
-  ctx.lineTo(SIZE - 80, footerLineY);
-  ctx.stroke();
+    ctx.save();
+    ctx.strokeStyle = iconColor + '66';
+    ctx.lineWidth = 1.3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const fic = ficonX + ficonSz / 2;
+    const fir = ficonSz / 2;
+    ctx.beginPath();
+    ctx.roundRect(ficonX + 1, fim - fir * 0.55, ficonSz - 2, ficonSz * 0.78, 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(fic, fim + fir * 0.06, fir * 0.3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.roundRect(ficonX + ficonSz * 0.27, fim - fir * 0.55 - fir * 0.22, ficonSz * 0.28, fir * 0.26, 1);
+    ctx.stroke();
+    ctx.restore();
 
-  ctx.fillStyle = iconColor + '2e';
-  const dotR = 3;
-  ctx.beginPath();
-  ctx.arc(SIZE / 2, footerLineY, dotR, 0, Math.PI * 2);
-  ctx.fill();
+    ctx.textAlign = 'left';
+    ctx.font = `300 ${footerFontSize}px "Space Grotesk", sans-serif`;
+    ctx.fillStyle = textColor + '66';
+    ctx.fillText(footerText, ftextX, footerDrawY);
+  }
 
   canvasWrapper.style.display = 'block';
   cardActions.style.display = 'flex';
-  tapHint.style.display = 'block';
+  tapHint.style.display = isMobile() ? 'block' : 'none';
   if (editPanel.style.display === 'none') editPanel.style.display = 'block';
+
+  if (!isMobile()) {
+    const specs = buildSpecs(meta);
+    buildDragLayer(specs, meta);
+  }
 }
 
 function buildSpecs(meta) {
@@ -1719,7 +2008,10 @@ function buildSpecs(meta) {
   ].filter(Boolean);
 
   if (all.length === 0) {
-    return [{ key: 'camera', label: 'Camera', value: 'No data — tap to edit', icon: 'camera' }];
+    const hiddenCamera = editFields.camera && editFields.camera.dataset.hidden === 'true';
+    if (hiddenCamera) return [];
+    const placeholder = 'Edit text below.';
+    return [{ key: 'camera', label: 'Camera', value: placeholder, icon: 'camera' }];
   }
   return all;
 }
@@ -1892,6 +2184,224 @@ function drawIcon(ctx, type, x, y, size) {
     }
   }
   ctx.restore();
+}
+
+function buildDragLayer(specs, meta) {
+  if (isMobile()) { dragLayer.style.display = 'none'; return; }
+
+  dragLayer.innerHTML = '<canvas class="drag-grid-hint" id="grid-canvas"></canvas>';
+  dragItems = [];
+
+  const wrapper = document.getElementById('canvas-wrapper');
+  const displayW = wrapper.clientWidth;
+  const scale = displayW / 1080;
+
+  const SIZE = 1080;
+  const contentTop = 220;
+  const contentBottom = SIZE - 210;
+  const availableH = contentBottom - contentTop;
+  const twoCol = specs.length > 7;
+  const maxRowH = 100, minRowH = twoCol ? 56 : 62;
+  const colCount = twoCol ? Math.ceil(specs.length / 2) : specs.length;
+  const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / colCount)));
+  const totalBlockH = colCount * rowH;
+  const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
+
+  let positions = [];
+
+  if (twoCol) {
+    const colContentW = 380, colGap = 60;
+    const totalTwoColW = colContentW * 2 + colGap;
+    const col1X = SIZE / 2 - totalTwoColW / 2 + 60;
+    const col2X = col1X + colContentW + colGap;
+    const col1 = specs.slice(0, Math.ceil(specs.length / 2));
+    const col2 = specs.slice(Math.ceil(specs.length / 2));
+    col1.forEach((item, i) => positions.push({ item, x: col1X, y: startY + i * rowH, w: colContentW, h: rowH }));
+    col2.forEach((item, i) => positions.push({ item, x: col2X, y: startY + i * rowH, w: colContentW, h: rowH }));
+  } else {
+    const blockW = 300;
+    const x = SIZE / 2 - blockW / 2;
+    specs.forEach((item, i) => positions.push({ item, x, y: startY + i * rowH, w: blockW + 100, h: rowH }));
+  }
+
+  const headerPos = { item: { key: 'header', label: 'Header text', value: meta.header || 'SPEC CARD', icon: null }, x: SIZE/2 - 200, y: 160, w: 400, h: 50, isHeader: true };
+  const footerPos = { item: { key: 'footer', label: 'Footer text', value: meta.footer || '@FateOfAstrophilia', icon: null }, x: SIZE/2 - 240, y: SIZE - 200, w: 480, h: 50, isFooter: true };
+  const headerBarPos = { item: { key: 'header-bar', label: 'Header line (drag vertically)', icon: null }, x: 40, y: 168, w: SIZE - 80, h: 56, isBarOnly: true };
+  const footerBarPos = { item: { key: 'footer-bar', label: 'Footer line (drag vertically)', icon: null }, x: 40, y: SIZE - 228, w: SIZE - 80, h: 56, isBarOnly: true };
+
+  [...[headerBarPos, footerBarPos, headerPos, footerPos], ...positions].forEach((pos, idx) => {
+    const custom = customDragPositions[pos.item.key];
+    const canvasX = custom ? custom.canvasX : pos.x;
+    const canvasY = custom ? custom.canvasY : pos.y;
+
+    const el = document.createElement('div');
+    el.className = 'drag-item';
+    el.dataset.key = pos.item.key;
+    el.style.left = (canvasX * scale) + 'px';
+    el.style.top = (canvasY * scale) + 'px';
+    el.style.width = (pos.w * scale) + 'px';
+    el.style.height = (pos.h * scale) + 'px';
+    el.style.opacity = '0';
+    el.style.zIndex = pos.isBarOnly ? '1' : '2';
+    if (pos.isBarOnly) {
+      el.style.borderTop = '2px solid transparent';
+      el.style.cursor = 'ns-resize';
+      el.addEventListener('mouseenter', () => { el.style.borderTop = '2px solid rgba(200,169,110,0.4)'; });
+      el.addEventListener('mouseleave', () => { el.style.borderTop = '2px solid transparent'; });
+    }
+    el.innerHTML = `<span class="drag-handle-icon">⠿</span>`;
+    el.title = 'Drag to reposition · ' + pos.item.label;
+
+    el.addEventListener('mousedown', onDragStart);
+    dragLayer.appendChild(el);
+    dragItems.push({ el, canvasX, canvasY, key: pos.item.key });
+  });
+}
+
+function onDragStart(e) {
+  if (isMobile()) return;
+  e.preventDefault();
+  const el = e.currentTarget;
+  const wrapper = document.getElementById('canvas-wrapper');
+  const wrapperRect = wrapper.getBoundingClientRect();
+  const displayW = wrapper.clientWidth;
+  const scale = displayW / 1080;
+
+  const startMouseX = e.clientX;
+  const startMouseY = e.clientY;
+  const startLeft = parseFloat(el.style.left);
+  const startTop = parseFloat(el.style.top);
+
+  const isBarOnly = el.dataset.key === 'header-bar' || el.dataset.key === 'footer-bar';
+  el.classList.add('dragging');
+  dragLayer.classList.add('dragging-active');
+  trashZone.classList.add('active');
+  drawGrid(displayW, wrapper.clientHeight, scale);
+
+  dragState = { el, startMouseX, startMouseY, startLeft, startTop, wrapperRect, scale, isBarOnly };
+
+  document.addEventListener('mousemove', onDragMove);
+  document.addEventListener('mouseup', onDragEnd);
+}
+
+function onDragMove(e) {
+  if (!dragState) return;
+  const { el, startMouseX, startMouseY, startLeft, startTop, scale, isBarOnly } = dragState;
+  const dx = isBarOnly ? 0 : e.clientX - startMouseX;
+  const dy = e.clientY - startMouseY;
+  el.style.left = (startLeft + dx) + 'px';
+  el.style.top = (startTop + dy) + 'px';
+
+  const trashRect = trashZone.getBoundingClientRect();
+  const overTrash = e.clientX >= trashRect.left && e.clientX <= trashRect.right &&
+                    e.clientY >= trashRect.top  && e.clientY <= trashRect.bottom;
+  trashZone.classList.toggle('over', overTrash);
+}
+
+function onDragEnd(e) {
+  if (!dragState) return;
+  const { el, scale } = dragState;
+
+  const trashRect = trashZone.getBoundingClientRect();
+  const overTrash = e.clientX >= trashRect.left && e.clientX <= trashRect.right &&
+                    e.clientY >= trashRect.top  && e.clientY <= trashRect.bottom;
+
+  trashZone.classList.remove('active', 'over');
+
+  if (overTrash) {
+    const key = el.dataset.key;
+    if (key === 'header-bar') {
+      showHeader = false;
+      toggleHeader.checked = false;
+      toggleHeader.dispatchEvent(new Event('change'));
+    } else if (key === 'footer-bar') {
+      showFooter = false;
+      toggleFooter.checked = false;
+      toggleFooter.dispatchEvent(new Event('change'));
+    } else if (editFields[key]) {
+      editFields[key].value = '';
+      editFields[key].classList.remove('has-value');
+      if (key === 'camera' && !editFields[key].value) {
+        editFields[key].dataset.hidden = 'true';
+      }
+    } else if (key === 'camera') {
+      editFields.camera.dataset.hidden = 'true';
+    }
+    delete customDragPositions[key];
+    el.classList.remove('dragging');
+    dragLayer.classList.remove('dragging-active');
+    clearGrid();
+    document.removeEventListener('mousemove', onDragMove);
+    document.removeEventListener('mouseup', onDragEnd);
+    dragState = null;
+    if (key !== 'header-bar' && key !== 'footer-bar') {
+      renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
+    }
+    return;
+  }
+
+  const left = parseFloat(el.style.left);
+  const top = parseFloat(el.style.top);
+  const canvasX = left / scale;
+  const canvasY = top / scale;
+  const snappedX = Math.round(canvasX / GRID) * GRID;
+  const snappedY = Math.round(canvasY / GRID) * GRID;
+  el.style.left = (snappedX * scale) + 'px';
+  el.style.top = (snappedY * scale) + 'px';
+
+  const item = dragItems.find(d => d.el === el);
+  if (item) {
+    item.canvasX = snappedX;
+    item.canvasY = snappedY;
+    customDragPositions[item.key] = { canvasX: snappedX, canvasY: snappedY };
+  }
+
+  el.classList.remove('dragging');
+  dragLayer.classList.remove('dragging-active');
+  trashZone.classList.remove('active', 'over');
+  clearGrid();
+
+  document.removeEventListener('mousemove', onDragMove);
+  document.removeEventListener('mouseup', onDragEnd);
+  dragState = null;
+
+  reRenderWithPositions();
+}
+
+function drawGrid(displayW, displayH, scale) {
+  const gc = document.getElementById('grid-canvas');
+  if (!gc) return;
+  gc.width = displayW;
+  gc.height = displayH;
+  gc.style.width = displayW + 'px';
+  gc.style.height = displayH + 'px';
+  const gCtx = gc.getContext('2d');
+  gCtx.clearRect(0, 0, displayW, displayH);
+  const gridPx = GRID * scale;
+  gCtx.strokeStyle = 'rgba(200,169,110,0.08)';
+  gCtx.lineWidth = 0.5;
+  for (let x = 0; x < displayW; x += gridPx) {
+    gCtx.beginPath(); gCtx.moveTo(x, 0); gCtx.lineTo(x, displayH); gCtx.stroke();
+  }
+  for (let y = 0; y < displayH; y += gridPx) {
+    gCtx.beginPath(); gCtx.moveTo(0, y); gCtx.lineTo(displayW, y); gCtx.stroke();
+  }
+}
+
+function clearGrid() {
+  const gc = document.getElementById('grid-canvas');
+  if (gc) { const gCtx = gc.getContext('2d'); gCtx.clearRect(0, 0, gc.width, gc.height); }
+}
+
+function reRenderWithPositions() {
+  if (!currentImg) return;
+  const meta = readEditFields();
+  renderCard(currentImg, meta, Object.keys(customDragPositions).length > 0);
+}
+
+function renderCardWithPositions(img, meta) {
+  if (dragItems.length === 0) { renderCard(img, meta); return; }
+  renderCard(img, meta, true);
 }
 
 </script>
