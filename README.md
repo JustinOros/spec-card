@@ -1,10 +1,10 @@
 # Camera Spec Card Generator
 
-**Turn any photo or Siril FITS file into a shareable camera spec card.**
+**Turn any photo or Siril FIT file into a shareable camera spec card.**
 
-Drop your image, get a beautifully formatted 1080×1080 overlay with your shooting data — no account, no upload, no server. Just one HTML file.
+Drop a photo for your background. Optionally drop a Siril FIT file. We'll read its EXIF metadata and generate a beautifully formatted 1080×1080 overlay with your shooting data — no account, no upload, no server. Just one HTML file.
 
-🔗 **[Try it live → justinoros.github.io/spec-card](http://justinoros.github.io/spec-card)**
+🔗 **[Try it live → justinoros.github.io/spec-card](https://justinoros.github.io/spec-card/)**
 
 ---
 
@@ -18,12 +18,17 @@ Drop your image, get a beautifully formatted 1080×1080 overlay with your shooti
 - **Auto-reads metadata** — EXIF for camera photos, FITS headers for Siril exports
 - **Astrophotography fields** — camera, telescope, lens, focal length, aperture, filter, shutter, frames stacked, total integration, ISO/gain, object, location, Bortle scale, and date
 - **Smart background handling** — images without EXIF data are used as the card background without overwriting your spec fields
-- **Click any field on the card** to edit it inline, or use the edit panel below
-- **Live updates** — every keystroke instantly re-renders the card
+- **Interactive drag-and-drop layout** *(desktop)* — drag any spec row, the header text, footer text, or separator lines to reposition them anywhere on the card with 40px grid snapping
+- **Trash to delete** — drag any element to the trash icon that appears while dragging to remove it from the card
+- **Click any field on the card** to edit it inline *(mobile)*, or use the edit panel below *(all devices)*
+- **Live updates** — every keystroke and slider adjustment instantly re-renders the card
 - **Two-column layout** — automatically activates when 8+ fields are populated
 - **Text size and background blur sliders**
+- **Label & header size slider** — independently control the size of labels, header, and footer text
 - **Custom icon and text colors** via hex input
-- **Editable header and footer** — swap "SPEC CARD" for your target name, and the footer for your IG handle, YouTube, or website
+- **Header and footer line toggles** — show or hide the separator lines independently
+- **Editable header and footer** — change "SPEC CARD" to your target name, and the footer to your IG handle, YouTube, or website
+- **Footer text saved to localStorage** — set it once, auto-populates on every future visit
 - **Downloads as a timestamped 1080×1080 JPEG** — `camera-spec-card-YYYYMMDD-HHMMSS.jpg`
 - **Zero dependencies at runtime** — everything runs in the browser, nothing is sent to a server
 
@@ -32,7 +37,7 @@ Drop your image, get a beautifully formatted 1080×1080 overlay with your shooti
 ## Usage
 
 ### Option 1 — Use the hosted version
-Visit **[justinoros.github.io/spec-card](http://justinoros.github.io/spec-card)** — no installation needed.
+Visit **[justinoros.github.io/spec-card](https://justinoros.github.io/spec-card/)** — no installation needed.
 
 ### Option 2 — Self-host or run locally
 1. Clone or download this repo
@@ -41,8 +46,9 @@ Visit **[justinoros.github.io/spec-card](http://justinoros.github.io/spec-card)*
 
 ```
 spec-card/
-├── index.html   ← the entire app
-└── bg.jpg       ← background wallpaper (optional, replace with your own)
+├── index.html      ← the entire app
+├── bg.jpg          ← background wallpaper (optional, replace with your own)
+└── screenshot.jpg  ← shown in this README
 ```
 
 ---
@@ -89,21 +95,37 @@ Any fields not present in the file can be filled in manually using the edit pane
 1. **Drop your background image** (exported PNG/TIFF from Siril, or any photo) — used as the blurred background
 2. **Drop your FITS file** — populates all available spec data without replacing the background
 3. **Fill in any missing fields** in the edit panel (Bortle, location, total integration, etc.)
-4. **Adjust** text size, blur, and colors to taste
-5. **Download** your 1080×1080 spec card and share alongside your image
+4. **Drag elements** to reposition them on the card *(desktop only)*
+5. **Adjust** text size, blur, and colors to taste
+6. **Download** your 1080×1080 spec card and share alongside your image on Instagram
+
+---
+
+## Desktop Drag & Drop Layout
+
+On desktop (mouse/trackpad), every element on the card is draggable:
+
+- **Hover** over any field to reveal the grab cursor
+- **Drag** to reposition — elements snap to a 40px grid when released
+- **Header and footer separator lines** can be dragged vertically
+- A **trash icon** appears below the card while dragging — drop any element on it to remove it from the card
+- Typing into a field after removing it will bring it back
+- All positions are preserved across re-renders until you load a new file
 
 ---
 
 ## Customization
 
-All fields on the card are editable — tap directly on the card or use the panel below it:
+All fields on the card are editable — tap directly on the card *(mobile)* or use the panel below it:
 
 - **Header** — defaults to `SPEC CARD`, change to your target name or session title
-- **Footer** — defaults to `@FateOfAstrophilia`, change to your IG, YouTube, website, or anything
+- **Footer** — defaults to `@FateOfAstrophilia`, change to your IG, YouTube, website, or anything — saved automatically to localStorage
 - **Icon color** — any 6-digit hex (default `#c8a96e`)
 - **Text color** — any 6-digit hex (default `#e8eaf0`)
-- **Text size** — slider from 60% to 140%
-- **Background blur** — slider from 0px (sharp) to 60px
+- **Label & header size** — slider from 60% to 140% (default 140%)
+- **Value text size** — slider from 60% to 140% (default 100%)
+- **Background blur** — slider from 0px (sharp) to 60px (default 5px)
+- **Header line** / **Footer line** toggles — show or hide separator lines independently
 
 ---
 
