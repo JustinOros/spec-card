@@ -271,6 +271,39 @@
     .drag-handle-icon { display: none; }
   }
 
+  .ratio-selector {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    margin-bottom: 4px;
+  }
+
+  .ratio-btn {
+    flex: 1;
+    padding: 8px 10px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+  }
+
+  .ratio-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .ratio-btn.active {
+    background: rgba(200,169,110,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
   .actions {
     display: flex;
     gap: 12px;
@@ -802,6 +835,11 @@
   </div>
   <div class="canvas-tap-hint" id="tap-hint" style="display:none;">Tap any field on the card to edit it</div>
   <div class="actions" id="card-actions" style="display:none;">
+    <div class="ratio-selector">
+      <button class="ratio-btn active" data-ratio="1:1">1:1 Square</button>
+      <button class="ratio-btn" data-ratio="4:5">4:5 Portrait</button>
+      <button class="ratio-btn" data-ratio="original">Original</button>
+    </div>
     <button class="btn-primary" id="download-btn">⬇ Download card</button>
     <button class="btn-secondary" id="upload-btn">⬆ Upload image</button>
     <input type="file" id="upload-any-input" accept="*/*" style="display:none;">
@@ -1116,6 +1154,17 @@ Object.values(editFields2).forEach(input => {
     if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
   });
 });
+let currentRatio = '1:1';
+
+document.querySelectorAll('.ratio-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentRatio = btn.dataset.ratio;
+    if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
+  });
+});
+
 let iconColor = '#c8a96e';
 let textColor = '#e8eaf0';
 
@@ -1202,6 +1251,9 @@ resetBtn.addEventListener('click', () => {
   igLinkBottom.style.display = 'none';
   fileInput.value = '';
   currentFilename = 'spec-card.jpg';
+  currentRatio = '1:1';
+  document.querySelectorAll('.ratio-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.ratio-btn[data-ratio="1:1"]').classList.add('active');
   currentImg = null;
   currentMeta = {};
   dragItems = [];
@@ -2215,18 +2267,37 @@ function extractMeta(exif) {
 }
 
 function renderCard(img, meta, useCustomPositions) {
-  const SIZE = 1080;
-  canvas.width = SIZE;
-  canvas.height = SIZE;
+  let W = 1080;
+  let H = 1080;
+  if (currentRatio === '4:5') H = 1350;
+  else if (currentRatio === 'original') {
+    const imgW = img.naturalWidth || 1080;
+    const imgH = img.naturalHeight || 1080;
+    if (imgW >= imgH) {
+      W = 1080;
+      H = Math.round(1080 * imgH / imgW);
+    } else {
+      H = 1080;
+      W = Math.round(1080 * imgW / imgH);
+    }
+  }
 
-  ctx.clearRect(0, 0, SIZE, SIZE);
+  canvas.width = W;
+  canvas.height = H;
+
+  ctx.clearRect(0, 0, W, H);
 
   ctx.filter = blurAmount > 0 ? `blur(${blurAmount}px)` : 'none';
-  ctx.drawImage(img, -40, -40, SIZE + 80, SIZE + 80);
+  const scale = Math.max(W / img.naturalWidth, H / img.naturalHeight);
+  const dw = img.naturalWidth * scale;
+  const dh = img.naturalHeight * scale;
+  const dx = (W - dw) / 2;
+  const dy = (H - dh) / 2;
+  ctx.drawImage(img, dx - 40, dy - 40, dw + 80, dh + 80);
   ctx.filter = 'none';
 
   ctx.fillStyle = 'rgba(8, 10, 16, 0.55)';
-  ctx.fillRect(0, 0, SIZE, SIZE);
+  ctx.fillRect(0, 0, W, H);
 
   const specs = buildSpecs(meta);
 
@@ -2234,8 +2305,8 @@ function renderCard(img, meta, useCustomPositions) {
   const headerText = meta.header ? meta.header.trim() : '';
   if (headerText) {
     const headerDrag = useCustomPositions && customDragPositions['header'];
-    const headerX = headerDrag ? headerDrag.canvasX + 200 : SIZE / 2;
-    const headerY = headerDrag ? headerDrag.canvasY + 36 : 180;
+    const headerX = headerDrag ? headerDrag.canvasX + 200 : W / 2;
+    const headerY = headerDrag ? headerDrag.canvasY + 36 : Math.round(H * 0.167);
     ctx.textAlign = 'center';
     ctx.fillStyle = textColor + '59';
     ctx.font = `400 ${headerFontSize}px "Space Mono", monospace`;
@@ -2243,21 +2314,21 @@ function renderCard(img, meta, useCustomPositions) {
   }
   if (showHeader) {
     const headerBarDrag = useCustomPositions && customDragPositions['header-bar'];
-    const headerLineY = headerBarDrag ? headerBarDrag.canvasY + 8 : 200;
+    const headerLineY = headerBarDrag ? headerBarDrag.canvasY + 8 : Math.round(H * 0.185);
     ctx.strokeStyle = iconColor + '59';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(80, headerLineY);
-    ctx.lineTo(SIZE - 80, headerLineY);
+    ctx.lineTo(W - 80, headerLineY);
     ctx.stroke();
     ctx.fillStyle = iconColor + '33';
     ctx.beginPath();
-    ctx.arc(SIZE / 2, headerLineY, 3, 0, Math.PI * 2);
+    ctx.arc(W / 2, headerLineY, 3, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  const contentTop = 220;
-  const contentBottom = SIZE - 210;
+  const contentTop = Math.round(H * 0.2);
+  const contentBottom = H - Math.round(H * 0.19);
   const availableH = contentBottom - contentTop;
   const dualMode = hasDualColumn();
   const twoCol = !dualMode && specs.length > 7;
@@ -2283,7 +2354,7 @@ function renderCard(img, meta, useCustomPositions) {
     const colContentW = 420;
     const colGap = 40;
     const totalW = colContentW * 2 + colGap;
-    const col1X = SIZE / 2 - totalW / 2;
+    const col1X = W / 2 - totalW / 2;
     const col2X = col1X + colContentW + colGap;
 
     const colLabelFontSize = Math.round(28 * labelScale);
@@ -2306,8 +2377,8 @@ function renderCard(img, meta, useCustomPositions) {
 
     ctx.strokeStyle = 'rgba(232,234,240,0.08)';
     ctx.beginPath();
-    ctx.moveTo(SIZE / 2, contentTop + 48);
-    ctx.lineTo(SIZE / 2, startY + totalBlockH - rowH * 0.3);
+    ctx.moveTo(W / 2, contentTop + 48);
+    ctx.lineTo(W / 2, startY + totalBlockH - rowH * 0.3);
     ctx.stroke();
 
     [specs, specs2].forEach((col, colIdx) => {
@@ -2347,14 +2418,14 @@ function renderCard(img, meta, useCustomPositions) {
     const colContentW = 380;
     const colGap = 60;
     const totalTwoColW = colContentW * 2 + colGap;
-    const col1X = SIZE / 2 - totalTwoColW / 2 + 60;
+    const col1X = W / 2 - totalTwoColW / 2 + 60;
     const col2X = col1X + colContentW + colGap;
 
     ctx.strokeStyle = 'rgba(232,234,240,0.08)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.moveTo(SIZE / 2, startY);
-    ctx.lineTo(SIZE / 2, startY + totalBlockH - rowH * 0.3);
+    ctx.moveTo(W / 2, startY);
+    ctx.lineTo(W / 2, startY + totalBlockH - rowH * 0.3);
     ctx.stroke();
 
     [col1, col2].forEach((col, colIdx) => {
@@ -2383,10 +2454,13 @@ function renderCard(img, meta, useCustomPositions) {
     const iconSize = Math.round(34 * scale);
     const labelSize = Math.max(9, Math.round(12 * scale * labelScale));
     const valueSize = Math.max(16, Math.round(26 * scale * textScale));
-    const blockW = 300;
-    const x = SIZE / 2 - blockW / 2;
     const totalBlockH = specs.length * rowH;
     const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
+
+    ctx.font = `bold ${valueSize}px "Space Grotesk", sans-serif`;
+    const maxTextW = Math.max(...specs.map(item => ctx.measureText(item.value).width));
+    const groupW = iconSize + 16 + maxTextW;
+    const x = Math.round(W / 2 - groupW / 2);
 
     specs.forEach((item, i) => {
       const defaultY = startY + i * rowH;
@@ -2404,8 +2478,8 @@ function renderCard(img, meta, useCustomPositions) {
     });
   }
 
-  const footerLineY = SIZE - 200;
-  const footerTextY = SIZE - 152;
+  const footerLineY = H - Math.round(H * 0.185);
+  const footerTextY = H - Math.round(H * 0.141);
   const footerFontSize = Math.round(20 * labelScale);
   const footerText = (meta.footer || '').trim();
 
@@ -2416,19 +2490,19 @@ function renderCard(img, meta, useCustomPositions) {
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(80, footerBarY);
-    ctx.lineTo(SIZE - 80, footerBarY);
+    ctx.lineTo(W - 80, footerBarY);
     ctx.stroke();
     ctx.fillStyle = iconColor + '2e';
     const dotR = 3;
     ctx.beginPath();
-    ctx.arc(SIZE / 2, footerBarY, dotR, 0, Math.PI * 2);
+    ctx.arc(W / 2, footerBarY, dotR, 0, Math.PI * 2);
     ctx.fill();
   }
 
   if (footerText) {
     const footerDrag = useCustomPositions && customDragPositions['footer'];
     const footerDrawY = footerDrag ? footerDrag.canvasY + 36 : footerTextY;
-    const footerCenterX = footerDrag ? footerDrag.canvasX + 240 : SIZE / 2;
+    const footerCenterX = footerDrag ? footerDrag.canvasX + 240 : W / 2;
 
     ctx.font = `300 ${footerFontSize}px "Space Grotesk", sans-serif`;
     const ftextW = ctx.measureText(footerText).width;
@@ -2682,9 +2756,16 @@ function buildDragLayer(specs, meta) {
   const displayW = wrapper.clientWidth;
   const scale = displayW / 1080;
 
-  const SIZE = 1080;
-  const contentTop = 220;
-  const contentBottom = SIZE - 210;
+  let W = 1080;
+  let H = currentRatio === '4:5' ? 1350 : 1080;
+  if (currentRatio === 'original' && currentImg) {
+    const imgW = currentImg.naturalWidth || 1080;
+    const imgH = currentImg.naturalHeight || 1080;
+    if (imgW >= imgH) { W = 1080; H = Math.round(1080 * imgH / imgW); }
+    else { H = 1080; W = Math.round(1080 * imgW / imgH); }
+  }
+  const contentTop = Math.round(H * 0.2);
+  const contentBottom = H - Math.round(H * 0.19);
   const availableH = contentBottom - contentTop;
   const dualMode = hasDualColumn();
   const twoCol = !dualMode && specs.length > 7;
@@ -2699,14 +2780,14 @@ function buildDragLayer(specs, meta) {
     const totalBlockH = colCount * rowH;
     const startY = Math.round(contentTop + 55 + (availableH - 55 - totalBlockH) / 2);
     const colContentW = 420, colGap = 40;
-    const col1X = SIZE / 2 - (colContentW * 2 + colGap) / 2;
+    const col1X = W / 2 - (colContentW * 2 + colGap) / 2;
     const col2X = col1X + colContentW + colGap;
     specs.forEach((item, i) => positions.push({ item, x: col1X, y: startY + i * rowH, w: colContentW, h: rowH }));
     specs2.forEach((item, i) => positions.push({ item: { ...item, key: 'col2_' + item.key }, x: col2X, y: startY + i * rowH, w: colContentW, h: rowH }));
   } else if (twoCol) {
     const colContentW = 380, colGap = 60;
     const totalTwoColW = colContentW * 2 + colGap;
-    const col1X = SIZE / 2 - totalTwoColW / 2 + 60;
+    const col1X = W / 2 - totalTwoColW / 2 + 60;
     const col2X = col1X + colContentW + colGap;
     const maxRowH = 100, minRowH = 56;
     const colCount = Math.ceil(specs.length / 2);
@@ -2722,15 +2803,15 @@ function buildDragLayer(specs, meta) {
     const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / specs.length)));
     const totalBlockH = specs.length * rowH;
     const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
-    const blockW = 300;
-    const x = SIZE / 2 - blockW / 2;
+    const blockW = Math.round(W * 0.35);
+    const x = W / 2 - blockW / 2;
     specs.forEach((item, i) => positions.push({ item, x, y: startY + i * rowH, w: blockW + 100, h: rowH }));
   }
 
-  const headerPos = { item: { key: 'header', label: 'Header text', value: meta.header || 'SPEC CARD', icon: null }, x: SIZE/2 - 200, y: 160, w: 400, h: 50, isHeader: true };
-  const footerPos = { item: { key: 'footer', label: 'Footer text', value: meta.footer || '@FateOfAstrophilia', icon: null }, x: SIZE/2 - 240, y: SIZE - 200, w: 480, h: 50, isFooter: true };
-  const headerBarPos = { item: { key: 'header-bar', label: 'Header line (drag vertically)', icon: null }, x: 40, y: 168, w: SIZE - 80, h: 56, isBarOnly: true };
-  const footerBarPos = { item: { key: 'footer-bar', label: 'Footer line (drag vertically)', icon: null }, x: 40, y: SIZE - 228, w: SIZE - 80, h: 56, isBarOnly: true };
+  const headerBarPos = { item: { key: 'header-bar', label: 'Header line (drag vertically)', icon: null }, x: 40, y: Math.round(H * 0.155), w: W - 80, h: 56, isBarOnly: true };
+  const footerBarPos = { item: { key: 'footer-bar', label: 'Footer line (drag vertically)', icon: null }, x: 40, y: H - Math.round(H * 0.211), w: W - 80, h: 56, isBarOnly: true };
+  const headerPos = { item: { key: 'header', label: 'Header text', value: meta.header || 'SPEC CARD', icon: null }, x: W/2 - 200, y: Math.round(H * 0.148), w: 400, h: 50, isHeader: true };
+  const footerPos = { item: { key: 'footer', label: 'Footer text', value: meta.footer || '@FateOfAstrophilia', icon: null }, x: W/2 - 240, y: H - Math.round(H * 0.185), w: 480, h: 50, isFooter: true };
 
   [...[headerBarPos, footerBarPos, headerPos, footerPos], ...positions].forEach((pos, idx) => {
     const custom = customDragPositions[pos.item.key];
