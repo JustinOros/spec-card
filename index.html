@@ -911,7 +911,7 @@
       </div>
       <div class="edit-field" style="grid-column: 1 / -1;">
         <label>Footer text (IG handle, website, anything)</label>
-        <input type="text" id="ef-footer" placeholder="e.g. @FateOfAstrophilia or your website" value="@FateOfAstrophilia">
+        <input type="text" id="ef-footer" placeholder="e.g. @FateOfAstrophilia or your website">
       </div>
       <div class="edit-field">
         <label>Icon color</label>
@@ -1164,6 +1164,10 @@ document.querySelectorAll('.ratio-btn').forEach(btn => {
     if (currentImg) renderCard(currentImg, readEditFields(), Object.keys(customDragPositions).length > 0);
   });
 });
+
+if (localStorage.getItem('speccard_footer') === '@FateOfAstrophilia') {
+  localStorage.removeItem('speccard_footer');
+}
 
 let iconColor = '#c8a96e';
 let textColor = '#e8eaf0';
@@ -2020,7 +2024,7 @@ function populateEditFields(meta, isFits) {
   const savedFooter = localStorage.getItem('speccard_footer');
   const currentFooterVal = editFields.footer ? editFields.footer.value.trim() : '';
   const currentHeaderVal = editFields.header ? editFields.header.value.trim() : '';
-  if (!meta.footer) meta.footer = currentFooterVal || savedFooter || '@FateOfAstrophilia';
+  if (!meta.footer) meta.footer = currentFooterVal || savedFooter || '';
   if (!meta.header) meta.header = currentHeaderVal || 'SPEC CARD';
   currentMeta = meta;
 
@@ -2811,7 +2815,7 @@ function buildDragLayer(specs, meta) {
   const headerBarPos = { item: { key: 'header-bar', label: 'Header line (drag vertically)', icon: null }, x: 40, y: Math.round(H * 0.155), w: W - 80, h: 56, isBarOnly: true };
   const footerBarPos = { item: { key: 'footer-bar', label: 'Footer line (drag vertically)', icon: null }, x: 40, y: H - Math.round(H * 0.211), w: W - 80, h: 56, isBarOnly: true };
   const headerPos = { item: { key: 'header', label: 'Header text', value: meta.header || 'SPEC CARD', icon: null }, x: W/2 - 200, y: Math.round(H * 0.148), w: 400, h: 50, isHeader: true };
-  const footerPos = { item: { key: 'footer', label: 'Footer text', value: meta.footer || '@FateOfAstrophilia', icon: null }, x: W/2 - 240, y: H - Math.round(H * 0.185), w: 480, h: 50, isFooter: true };
+  const footerPos = { item: { key: 'footer', label: 'Footer text', value: meta.footer || '', icon: null }, x: W/2 - 240, y: H - Math.round(H * 0.185), w: 480, h: 50, isFooter: true };
 
   [...[headerBarPos, footerBarPos, headerPos, footerPos], ...positions].forEach((pos, idx) => {
     const custom = customDragPositions[pos.item.key];
