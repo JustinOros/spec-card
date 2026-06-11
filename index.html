@@ -229,10 +229,10 @@
 
   .drag-item.dragging {
     cursor: grabbing;
-    background: rgba(200,169,110,0.12);
-    outline: 1px dashed rgba(200,169,110,0.4);
+    background: rgba(200,169,110,0.15);
+    outline: 1px dashed rgba(200,169,110,0.5);
+    opacity: 1 !important;
     z-index: 100;
-    opacity: 0.85;
   }
 
   .drag-item .snap-indicator {
@@ -2297,15 +2297,18 @@ function renderCard(img, meta, useCustomPositions) {
     [specs, specs2].forEach((col, colIdx) => {
       const colX = colIdx === 0 ? col1X : col2X;
       col.forEach((item, i) => {
-        const y = startY + i * rowH;
-        drawIcon(ctx, item.icon, colX, y + Math.round(rowH * 0.1), iconSize);
+        const key = colIdx === 0 ? item.key : 'col2_' + item.key;
+        const custom = useCustomPositions && customDragPositions[key];
+        const drawX = custom ? custom.canvasX : colX;
+        const drawY = custom ? custom.canvasY : startY + i * rowH;
+        drawIcon(ctx, item.icon, drawX, drawY + Math.round(rowH * 0.1), iconSize);
         ctx.textAlign = 'left';
         ctx.font = `500 ${labelSize}px "Space Mono", monospace`;
         ctx.fillStyle = textColor + '66';
-        ctx.fillText(item.label.toUpperCase(), colX + iconSize + 10, y + Math.round(rowH * 0.32));
+        ctx.fillText(item.label.toUpperCase(), drawX + iconSize + 10, drawY + Math.round(rowH * 0.32));
         ctx.font = `bold ${valueSize}px "Space Grotesk", sans-serif`;
         ctx.fillStyle = textColor;
-        ctx.fillText(item.value, colX + iconSize + 10, y + Math.round(rowH * 0.72), colContentW - iconSize - 16);
+        ctx.fillText(item.value, drawX + iconSize + 10, drawY + Math.round(rowH * 0.72), colContentW - iconSize - 16);
       });
     });
 
@@ -2667,25 +2670,42 @@ function buildDragLayer(specs, meta) {
   const contentTop = 220;
   const contentBottom = SIZE - 210;
   const availableH = contentBottom - contentTop;
-  const twoCol = specs.length > 7;
-  const maxRowH = 100, minRowH = twoCol ? 56 : 62;
-  const colCount = twoCol ? Math.ceil(specs.length / 2) : specs.length;
-  const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / colCount)));
-  const totalBlockH = colCount * rowH;
-  const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
+  const dualMode = hasDualColumn();
+  const twoCol = !dualMode && specs.length > 7;
 
   let positions = [];
 
-  if (twoCol) {
+  if (dualMode) {
+    const specs2 = buildSpecs(readEditFields2());
+    const colCount = Math.max(specs.length, specs2.length);
+    const maxRowH = 90, minRowH = 48;
+    const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor((availableH - 60) / colCount)));
+    const totalBlockH = colCount * rowH;
+    const startY = Math.round(contentTop + 55 + (availableH - 55 - totalBlockH) / 2);
+    const colContentW = 420, colGap = 40;
+    const col1X = SIZE / 2 - (colContentW * 2 + colGap) / 2;
+    const col2X = col1X + colContentW + colGap;
+    specs.forEach((item, i) => positions.push({ item, x: col1X, y: startY + i * rowH, w: colContentW, h: rowH }));
+    specs2.forEach((item, i) => positions.push({ item: { ...item, key: 'col2_' + item.key }, x: col2X, y: startY + i * rowH, w: colContentW, h: rowH }));
+  } else if (twoCol) {
     const colContentW = 380, colGap = 60;
     const totalTwoColW = colContentW * 2 + colGap;
     const col1X = SIZE / 2 - totalTwoColW / 2 + 60;
     const col2X = col1X + colContentW + colGap;
+    const maxRowH = 100, minRowH = 56;
+    const colCount = Math.ceil(specs.length / 2);
+    const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / colCount)));
+    const totalBlockH = colCount * rowH;
+    const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
     const col1 = specs.slice(0, Math.ceil(specs.length / 2));
     const col2 = specs.slice(Math.ceil(specs.length / 2));
     col1.forEach((item, i) => positions.push({ item, x: col1X, y: startY + i * rowH, w: colContentW, h: rowH }));
     col2.forEach((item, i) => positions.push({ item, x: col2X, y: startY + i * rowH, w: colContentW, h: rowH }));
   } else {
+    const maxRowH = 100, minRowH = 62;
+    const rowH = Math.max(minRowH, Math.min(maxRowH, Math.floor(availableH / specs.length)));
+    const totalBlockH = specs.length * rowH;
+    const startY = Math.round(contentTop + (availableH - totalBlockH) / 2);
     const blockW = 300;
     const x = SIZE / 2 - blockW / 2;
     specs.forEach((item, i) => positions.push({ item, x, y: startY + i * rowH, w: blockW + 100, h: rowH }));
@@ -2785,6 +2805,12 @@ function onDragEnd(e) {
       showFooter = false;
       toggleFooter.checked = false;
       toggleFooter.dispatchEvent(new Event('change'));
+    } else if (key.startsWith('col2_')) {
+      const col2Key = key.replace('col2_', '');
+      if (editFields2[col2Key]) {
+        editFields2[col2Key].value = '';
+        editFields2[col2Key].classList.remove('has-value');
+      }
     } else if (editFields[key]) {
       editFields[key].value = '';
       editFields[key].classList.remove('has-value');
